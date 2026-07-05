@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Курьеры — карта</title>
+
+  <!-- Telegram Mini App SDK (работает и вне Telegram — просто без эффекта) -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Карта: Leaflet + OpenStreetMap (open-source, без ключей) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ЭКРАН 1: выбор города -->
+  <section id="screen-city" class="screen screen-city">
+    <div class="city-hero">
+      <div class="logo-badge">🌸</div>
+      <h1>Карта курьеров</h1>
+      <p class="subtitle">Выберите город, чтобы открыть карту</p>
+    </div>
+    <div id="city-list" class="city-list" role="list"></div>
+    <div class="hero-footer">Можно сменить город в любой момент</div>
+  </section>
+
+  <!-- ЭКРАН 2: карта города -->
+  <section id="screen-map" class="screen screen-map hidden">
+    <header class="topbar">
+      <button id="btn-change-city" class="topbar-city" aria-label="Сменить город">
+        <span id="current-city-name">Город</span>
+        <span class="chev">▾</span>
+      </button>
+      <div class="topbar-spacer"></div>
+    </header>
+
+    <div id="map" class="map"></div>
+
+    <!-- Боковая панель статуса + обратная связь -->
+    <aside class="side-panel">
+      <div id="status-chip" class="status-chip status-ok">
+        <span class="status-dot"></span>
+        <span id="status-text">Загрузка…</span>
+      </div>
+      <button id="btn-feedback" class="btn-feedback" aria-label="Сообщить о проблеме">
+        ⚠️ Сообщить о проблеме
+      </button>
+    </aside>
+  </section>
+
+  <!-- Модальное окно обратной связи -->
+  <div id="feedback-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="fb-title">
+    <div class="modal-card">
+      <h2 id="fb-title">Сообщить о проблеме</h2>
+      <p class="modal-hint">Опишите, что работает неправильно. Сообщение придёт владельцу.</p>
+      <textarea id="feedback-text" maxlength="2000" rows="5" placeholder="Например: улица не подсвечивается, карта не грузится…"></textarea>
+      <div class="modal-actions">
+        <button id="fb-cancel" class="btn btn-ghost">Отмена</button>
+        <button id="fb-send" class="btn btn-primary">Отправить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Тост-уведомление -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/cities.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

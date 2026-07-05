@@ -1,0 +1,57 @@
+# Non-secret server profile for Prometey.
+# Merge these values into /root/.hermes/config.yaml during deployment.
+# Telegram token, proxy credentials, OAuth tokens and API keys are intentionally absent.
+
+model:
+  default: gpt-5.5
+  provider: openai-codex
+  base_url: https://chatgpt.com/backend-api/codex
+  context_length: 64000
+
+agent:
+  max_turns: 60
+  gateway_timeout: 1800
+  reasoning_effort: medium
+
+terminal:
+  backend: local
+  cwd: /root/codex-workspace
+  timeout: 180
+  persistent_shell: true
+
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  memory_char_limit: 8000
+  user_char_limit: 4000
+  provider: ""
+  nudge_interval: 3
+  flush_min_turns: 6
+
+display:
+  language: ru
+  show_reasoning: false
+  streaming: true
+  platforms:
+    telegram:
+      streaming: true
+      tool_progress: "off"
+      interim_assistant_messages: false
+      long_running_notifications: false
+      busy_ack_detail: false
+      cleanup_progress: true
+
+security:
+  redact_secrets: true
+  tirith_enabled: true
+
+approvals:
+  mode: manual
+  timeout: 600
+  cron_mode: deny
+  mcp_reload_confirm: true
+  destructive_slash_confirm: false
+
+platform_toolsets:
+  telegram:
+    - hermes-telegram

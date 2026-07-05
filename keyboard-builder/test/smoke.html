@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="UTF-8"><title>smoke</title></head>
+<body>
+  <aside id="panel">
+    <button class="create-btn" data-type="message"></button>
+    <button class="create-btn" data-type="command"></button>
+    <button class="create-btn" data-type="condition"></button>
+    <button class="create-btn" data-type="input"></button>
+    <button class="create-btn" data-type="delay"></button>
+    <button id="btn-open"></button>
+    <button id="btn-download"></button>
+    <input type="file" id="file-input" hidden />
+  </aside>
+  <main id="canvas">
+    <div id="world">
+      <svg id="links"><defs></defs><g id="links-layer"></g></svg>
+    </div>
+  </main>
+  <pre id="out">running…</pre>
+  <script src="../js/state.js"></script>
+  <script src="../js/canvas.js"></script>
+  <script src="../js/connections.js"></script>
+  <script src="../js/buttons.js"></script>
+  <script src="../js/windows.js"></script>
+  <script src="../js/io.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    (function(){
+      const R=[], pass=(n)=>R.push("PASS "+n), fail=(n,e)=>R.push("FAIL "+n+(e?" | "+e:""));
+      try {
+        localStorage.removeItem("bot-logic");
+
+        // state: window types
+        const wMsg = BK.addWindow(100,100,"message");
+        const wCmd = BK.addWindow(400,100,"command");
+        const wCnd = BK.addWindow(100,300,"condition");
+        const wInp = BK.addWindow(400,300,"input");
+        const wDly = BK.addWindow(700,300,"delay");
+        pass("addWindow x5 types");
+
+        // condition auto-gets 2 buttons
+        pass("condition has 2 buttons: " + (BK.getWindow(wCnd.id).buttons.length === 2));
+        // input/delay auto-get 1 button
+        pass("input has 1 button: " + (BK.getWindow(wInp.id).buttons.length === 1));
+        pass("delay has 1 button: " + (BK.getWindow(wDly.id).buttons.length === 1));
+
+        // type-specific fields
+        pass("command field: " + (wCmd.command === "/start"));
+        pass("delay field: " + (wDly.delay_seconds === 3));
+        pass("input field: " + (wInp.variable_name === "user_input"));
+
+        // note field
+        BK.updateWindow(wMsg.id, {note: "Стартовый экран"});
+        pass("note saved: " + (BK.getWindow(wMsg.id).note === "Стартовый экран"));
+
+        // link a button
+        const b = BK.addButton(wMsg.id);
+        BK.updateButton(wMsg.id, b.id, {action:"goto", target: wCmd.id});
+        pass("button link set");
+
+        // export strips title
+        const src = BK.getState();
+        const exported = {version: src.version, windows: src.windows.map(({title,...r})=>r)};
+        const json = JSON.stringify(exported);
+        pass("title not in export: " + !json.includes('"title"'));
+        pass("note in export: " + json.includes('"note"'));
+        pass("type in export: " + json.includes('"type"'));
+
+        // restore
+        const parsed = JSON.parse(json);
+        parsed.windows.forEach((w,i)=>{ if(!w.title) w.title=`Блок ${i+1}`; });
+        BK.replaceState(parsed);
+        pass("replaceState ok: " + (BK.getState().windows.length === 5));
+
+        // renderWindow builds DOM
+        const ctx2 = {state:BK, rerender:()=>{}, redrawLinks:()=>{}};
+        const el = BK.renderWindow(BK.getState().windows[0], ctx2);
+        pass("renderWindow DOM: " + el.classList.contains("window"));
+        pass("type class: " + (el.classList.contains("type-message") || el.classList.contains("type-command")));
+
+        // condition window has connector per button
+        const elCnd = BK.renderWindow(BK.getWindow(wCnd.id), ctx2);
+        const conns = elCnd.querySelectorAll(".connector");
+        pass("condition connectors: " + (conns.length === 2));
+
+      } catch(e) { fail("exception", e && e.message); }
+      const ok = R.every(l=>l.startsWith("PASS"));
+      document.getElementById("out").textContent = (ok?"ALL PASS\n":"HAS FAILURES\n") + R.join("\n");
+      document.title = ok ? "SMOKE_OK" : "SMOKE_FAIL";
+    })();
+  </script>
+</body></html>

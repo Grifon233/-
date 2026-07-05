@@ -1,0 +1,27 @@
+.env
+.env.*
+*.db
+*.sqlite
+*.sqlite3
+*.session
+*.log
+logs/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+config/*
+!config/.gitkeep
+node_modules/
+.DS_Store
+Thumbs.db
+# --- Automatically added by Antigravity cleanup ---
+.secrets/
+secrets.json
+*.session-journal

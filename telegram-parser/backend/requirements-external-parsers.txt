@@ -1,0 +1,14 @@
+# Extra dependencies required by the three integrated external parsers
+# (telegram-channels-monitor, telegram-keywords-parser, keyword_alert_bot).
+# Install into the backend venv:
+#   pip install -r requirements-external-parsers.txt
+#
+# Telethon / Pyrogram / PySocks / PyYAML / python-dateutil are already
+# pinned in the main requirements.txt — only the parser-specific extras
+# are listed here.
+pyTelegramBotAPI==4.6.0   # telegram-channels-monitor (telebot)
+peewee                    # keyword_alert_bot ORM (SQLite subscriptions)
+diskcache                 # keyword_alert_bot dedup cache
+asyncstdlib               # keyword_alert_bot async lru_cache
+colorama                  # keyword_alert_bot logger colors
+text_box_wrapper          # keyword_alert_bot banner

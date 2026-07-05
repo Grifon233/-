@@ -1,0 +1,19 @@
+# Ферма аккаунтов-юзерботов. Скопируй в accounts.yml и заполни.
+# ПРАВИЛО ПРОЕКТА: каждый аккаунт — строго через свой прокси. Без прокси не подключать!
+# accounts.yml в git НЕ коммитим (он в .gitignore).
+
+accounts:
+  - name: acc1
+    api_id: 123456            # из my.telegram.org
+    api_hash: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    phone: "+70000000000"
+    session: "sessions/acc1"  # файл сессии Telethon (создастся при первом входе)
+    proxy:                    # ОБЯЗАТЕЛЬНО
+      type: socks5            # socks5 | http
+      host: "1.2.3.4"
+      port: 1080
+      username: "user"
+      password: "pass"
+
+  # - name: acc2
+  #   ...

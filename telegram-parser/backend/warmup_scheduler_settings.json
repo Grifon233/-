@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "interval_min_hours": 4.0,
+  "interval_max_hours": 8.0,
+  "active_hours_start": 8,
+  "active_hours_end": 23,
+  "skip_chance": 0.15,
+  "project_id": 1
+}

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ИИ-продавцы DeepSeek</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+    <script src="/app.js" type="module" defer></script>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">DS</div>
+          <div>
+            <h1>ИИ-продавцы</h1>
+            <p id="modelLabel">DeepSeek V4 Flash</p>
+          </div>
+        </div>
+
+        <nav class="agent-list" id="agentList" aria-label="Проекты продавцов"></nav>
+
+        <div class="source-card">
+          <div class="source-card__header">
+            <i data-lucide="github"></i>
+            <span>GitHub источники</span>
+          </div>
+          <p>4 скачанных проекта лежат в <strong>vendor/agents</strong></p>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="agent-heading">
+            <div class="agent-avatar" id="agentAvatar">SG</div>
+            <div>
+              <h2 id="agentName">SalesGPT</h2>
+              <p id="agentTagline">Стадийный продавец</p>
+            </div>
+          </div>
+
+          <div class="topbar-actions">
+            <div class="status-strip" id="statusStrip">
+              <span class="status-dot"></span>
+              <span id="statusText">Проверяю DeepSeek</span>
+            </div>
+            <a class="icon-button" id="repoLink" href="#" target="_blank" rel="noreferrer" title="Открыть GitHub">
+              <i data-lucide="external-link"></i>
+            </a>
+            <button class="icon-button" id="resetButton" title="Сбросить диалог">
+              <i data-lucide="rotate-ccw"></i>
+            </button>
+          </div>
+        </header>
+
+        <section class="content-grid">
+          <section class="chat-panel">
+            <div class="case-tabs" id="caseTabs" aria-label="Кейсы продаж"></div>
+            <div class="message-list" id="messageList" aria-live="polite"></div>
+
+            <div class="quick-prompts" id="quickPrompts">
+              <button data-text="Какая цена?"><i data-lucide="badge-russian-ruble"></i><span>Какая цена?</span></button>
+              <button data-text="Дорого, у других дешевле"><i data-lucide="trending-down"></i><span>Дорого</span></button>
+              <button data-text="Я подумаю"><i data-lucide="clock-3"></i><span>Я подумаю</span></button>
+              <button data-text="Мы уже работаем с другим поставщиком"><i data-lucide="users"></i><span>Есть поставщик</span></button>
+            </div>
+
+            <form class="composer" id="chatForm">
+              <textarea
+                id="messageInput"
+                rows="2"
+                placeholder="Вы клиент. Напишите продавцу возражение или интерес..."
+              ></textarea>
+              <button class="send-button" type="submit">
+                <i data-lucide="send"></i>
+                <span>Отправить</span>
+              </button>
+            </form>
+          </section>
+
+          <aside class="inspector">
+            <section class="panel-card">
+              <h3>Активный кейс</h3>
+              <p id="caseSummary"></p>
+              <p class="context-note" id="caseProof"></p>
+              <div class="product-list" id="productList"></div>
+            </section>
+
+            <section class="panel-card">
+              <h3>Профиль проекта</h3>
+              <dl class="repo-meta">
+                <div><dt>Звезды</dt><dd id="repoStars"></dd></div>
+                <div><dt>Язык</dt><dd id="repoLanguage"></dd></div>
+                <div><dt>Лицензия</dt><dd id="repoLicense"></dd></div>
+              </dl>
+              <p id="repoSummary"></p>
+            </section>
+
+            <section class="panel-card">
+              <h3>Сильные стороны</h3>
+              <div class="pill-list" id="strengthList"></div>
+            </section>
+
+            <section class="panel-card">
+              <h3>Стадии</h3>
+              <ol class="stage-list" id="stageList"></ol>
+            </section>
+          </aside>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

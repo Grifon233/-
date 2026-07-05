@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: tgcomb_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "127.0.0.1:5432:5432" # Bind to localhost to prevent external access
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tgcomb_redis
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379" # Bind to localhost to prevent external access
+    volumes:
+      - redisdata:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+
+  worker:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: tgcomb_worker
+    restart: always
+    depends_on:
+      - db
+      - redis
+    environment:
+      POSTGRES_SERVER: db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      USE_SQLITE: "false"
+      ADMIN_API_TOKEN: ${ADMIN_API_TOKEN}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+    command: celery -A app.core.celery_app:celery_app worker --loglevel=info -Q main-queue
+
+volumes:
+  pgdata:
+  redisdata:

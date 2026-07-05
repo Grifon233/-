@@ -1,0 +1,12 @@
+# Источники = чужие чаты/каналы (в т.ч. закрытые, вход по инвайт-ссылке).
+# Скопируй в sources.yml и заполни. Добавить источник = одна запись.
+# Распределяй источники по аккаунтам (assigned_account), чтобы не перегружать один.
+
+sources:
+  - invite: "https://t.me/+AbCdEfGhIjK"   # инвайт-ссылка (или @username для публичных)
+    city: "Москва"
+    assigned_account: acc1
+
+  - invite: "https://t.me/+XyZ123456"
+    city: "Санкт-Петербург"
+    assigned_account: acc1

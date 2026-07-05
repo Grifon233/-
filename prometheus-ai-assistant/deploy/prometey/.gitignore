@@ -1,0 +1,6 @@
+# Never place live credentials or complete server auth state in this profile.
+.env
+auth.json
+credential_pool.json
+*.key
+*.pem

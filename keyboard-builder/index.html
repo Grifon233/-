@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Конструктор логики Telegram-бота</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <aside id="panel">
+    <h1>Конструктор<br />бота</h1>
+
+    <div class="panel-section-label">Создать блок</div>
+
+    <button class="panel-btn create-btn type-message" data-type="message">
+      <span class="cbtn-icon">📨</span>
+      <span class="cbtn-text">
+        <b>Сообщение</b>
+        <small>Текст + картинка + кнопки</small>
+      </span>
+    </button>
+    <button class="panel-btn create-btn type-command" data-type="command">
+      <span class="cbtn-icon">⚡</span>
+      <span class="cbtn-text">
+        <b>Команда</b>
+        <small>Вход при /start, /help и т.д.</small>
+      </span>
+    </button>
+    <button class="panel-btn create-btn type-condition" data-type="condition">
+      <span class="cbtn-icon">🔀</span>
+      <span class="cbtn-text">
+        <b>Условие (если)</b>
+        <small>Развилка Да/Нет</small>
+      </span>
+    </button>
+    <button class="panel-btn create-btn type-input" data-type="input">
+      <span class="cbtn-icon">⌨️</span>
+      <span class="cbtn-text">
+        <b>Ожидание ввода</b>
+        <small>Бот ждёт ответ пользователя</small>
+      </span>
+    </button>
+    <button class="panel-btn create-btn type-delay" data-type="delay">
+      <span class="cbtn-icon">⏳</span>
+      <span class="cbtn-text">
+        <b>Задержка</b>
+        <small>Пауза перед следующим шагом</small>
+      </span>
+    </button>
+    <button class="panel-btn create-btn type-variable" data-type="variable">
+      <span class="cbtn-icon">📦</span>
+      <span class="cbtn-text">
+        <b>Переменная</b>
+        <small>Сохранить значение в память бота</small>
+      </span>
+    </button>
+    <button class="panel-btn create-btn type-api" data-type="api">
+      <span class="cbtn-icon">🌐</span>
+      <span class="cbtn-text">
+        <b>HTTP-запрос</b>
+        <small>Запрос к внешнему API</small>
+      </span>
+    </button>
+
+    <div id="divider-io" class="panel-divider"></div>
+
+    <button id="btn-open" class="panel-btn">📂 Открыть проект</button>
+    <button id="btn-download" class="panel-btn">⬇️ Скачать проект</button>
+    <button id="btn-share" class="panel-btn share-btn">🔗 Поделиться ссылкой</button>
+    <input type="file" id="file-input" accept="application/json,.json" hidden />
+
+    <div id="divider-help" class="panel-divider"></div>
+    <button id="btn-help" class="panel-btn">📖 Помощь и примеры</button>
+  </aside>
+
+  <main id="canvas">
+    <div id="world">
+      <svg id="links">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3"
+                  orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L8,3 L0,6 Z" fill="#4ea1ff" />
+          </marker>
+        </defs>
+        <g id="links-layer"></g>
+      </svg>
+    </div>
+  </main>
+
+  <script src="js/state.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/connections.js"></script>
+  <script src="js/buttons.js"></script>
+  <script src="js/windows.js"></script>
+  <script src="js/io.js"></script>
+  <script src="js/help.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

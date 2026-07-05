@@ -1,0 +1,25 @@
+.env
+.env.*
+secrets.json
+*.log
+logs/
+node_modules/
+dist/
+build/
+.cache/
+.DS_Store
+Thumbs.db
+# --- Automatically added by Antigravity cleanup ---
+.secrets/
+*.db
+*.sqlite
+*.sqlite3
+*.session
+*.session-journal
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

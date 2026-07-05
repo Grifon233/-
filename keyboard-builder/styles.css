@@ -1,0 +1,481 @@
+:root {
+  --bg: #0f141b;
+  --grid: #18212e;
+  --panel: #161d28;
+  --panel-border: #232d3c;
+  --card: #1f2733;
+  --card-head: #283342;
+  --accent: #4ea1ff;
+  --accent-d: #2f7fe0;
+  --text: #e7edf5;
+  --muted: #8a98ab;
+  /* type accent colors */
+  --c-message:   #4ea1ff;
+  --c-command:   #4caf50;
+  --c-condition: #ff9800;
+  --c-input:     #ce93d8;
+  --c-delay:     #4dd0e1;
+  --c-variable:  #ba68c8;
+  --c-api:       #26c6da;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; height: 100%; overflow: hidden;
+  font-family: "Segoe UI", Roboto, system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+body { display: flex; }
+
+/* ─── Левая панель ───────────────────────────── */
+#panel {
+  width: 240px; flex: 0 0 240px;
+  background: var(--panel);
+  border-right: 1px solid var(--panel-border);
+  padding: 14px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  z-index: 10; overflow-y: auto;
+}
+#panel h1 {
+  font-size: 17px; margin: 0 0 6px;
+  line-height: 1.15; color: var(--accent);
+}
+.panel-section-label {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  color: var(--muted); text-transform: uppercase;
+  padding: 4px 2px 2px;
+}
+.panel-divider {
+  height: 1px; background: var(--panel-border); margin: 4px 0;
+}
+.panel-btn {
+  width: 100%; padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  background: var(--card); color: var(--text);
+  border-radius: 10px; font-size: 13px; cursor: pointer;
+  text-align: left; transition: background .12s, border-color .12s;
+}
+.panel-btn:hover { background: var(--card-head); border-color: var(--accent-d); }
+.share-btn { border-color: rgba(76,175,80,.4); color: #a5d6a7; }
+.share-btn:hover { border-color: var(--c-command); color: #c8e6c9; background: rgba(76,175,80,.08); }
+
+/* create buttons with description */
+.create-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+}
+.cbtn-icon { font-size: 16px; flex: 0 0 auto; }
+.cbtn-text { display: flex; flex-direction: column; gap: 1px; }
+.cbtn-text b { font-size: 12px; font-weight: 600; }
+.cbtn-text small { font-size: 10px; color: var(--muted); }
+.create-btn.type-message  { border-left: 3px solid var(--c-message); }
+.create-btn.type-command  { border-left: 3px solid var(--c-command); }
+.create-btn.type-condition{ border-left: 3px solid var(--c-condition); }
+.create-btn.type-input    { border-left: 3px solid var(--c-input); }
+.create-btn.type-delay    { border-left: 3px solid var(--c-delay); }
+.create-btn.type-variable { border-left: 3px solid var(--c-variable); }
+.create-btn.type-api      { border-left: 3px solid var(--c-api); }
+
+.panel-hint {
+  margin-top: auto; padding-top: 8px;
+  font-size: 11px; color: var(--muted); line-height: 1.6;
+}
+.panel-hint p { margin: 5px 0; }
+
+/* ─── Холст ──────────────────────────────────── */
+#canvas {
+  position: relative; flex: 1 1 auto;
+  overflow: hidden; cursor: grab; touch-action: none;
+  /* Infinite grid — updated by JS via CSS vars */
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: var(--grid-size, 28px) var(--grid-size, 28px);
+  background-position: var(--grid-x, 0px) var(--grid-y, 0px);
+}
+#canvas.panning { cursor: grabbing; }
+
+#world {
+  position: absolute; top: 0; left: 0;
+  width: 0; height: 0;          /* content sizes itself; no background here */
+  transform-origin: 0 0;
+}
+
+#links {
+  position: absolute; top: 0; left: 0;
+  width: 12000px; height: 12000px;
+  overflow: visible; pointer-events: none; z-index: 1;
+}
+.link {
+  fill: none; stroke: var(--accent); stroke-width: 2.5;
+}
+.link-temp { stroke-dasharray: 6 5; opacity: .8; }
+.link-hit {
+  fill: none; stroke: transparent; stroke-width: 16;
+  pointer-events: stroke; cursor: pointer;
+}
+
+/* ─── Блок (окно бота) ───────────────────────── */
+.window {
+  position: absolute; width: 290px;
+  background: var(--card);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  z-index: 20;        /* above SVG links */
+  user-select: none;
+  overflow: visible;  /* connectors stick out */
+  cursor: grab;       /* whole block is draggable */
+  transition: box-shadow .15s;
+}
+.window:hover { box-shadow: 0 8px 28px rgba(0,0,0,.5); }
+.window.dragging { cursor: grabbing; box-shadow: 0 12px 36px rgba(0,0,0,.6); z-index: 30; }
+
+/* top-border accent by type */
+.window.type-message   { border-top: 3px solid var(--c-message); }
+.window.type-command   { border-top: 3px solid var(--c-command); }
+.window.type-condition { border-top: 3px solid var(--c-condition); }
+.window.type-input     { border-top: 3px solid var(--c-input); }
+.window.type-delay     { border-top: 3px solid var(--c-delay); }
+.window.type-variable  { border-top: 3px solid var(--c-variable); }
+.window.type-api       { border-top: 3px solid var(--c-api); }
+
+.win-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px 9px 12px;
+  background: var(--card-head);
+  border-radius: 13px 13px 0 0;
+  cursor: grab;
+}
+.win-head:active { cursor: grabbing; }
+
+.win-grip {
+  color: var(--muted); font-size: 11px; flex: 0 0 auto;
+  opacity: .5; letter-spacing: -2px; line-height: 1;
+}
+
+.win-type-icon { font-size: 15px; flex: 0 0 auto; }
+.win-title-wrap { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.win-title-label {
+  font-size: 9px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 1px;
+}
+.win-title {
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  outline: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  cursor: text;
+}
+.win-title:empty:before { content: "Название блока"; color: var(--muted); }
+.win-del {
+  cursor: pointer; color: var(--muted);
+  font-size: 15px; padding: 3px 5px; border-radius: 6px; flex: 0 0 auto;
+  opacity: 0; transition: opacity .12s;
+}
+.win-head:hover .win-del { opacity: 1; }
+.win-del:hover { color: #ff6b6b; background: rgba(255,107,107,.12); }
+
+.win-body { padding: 10px 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+
+/* interactive elements override grab cursor */
+.win-body input, .win-body textarea, .win-body select,
+.win-body button, .win-body [contenteditable],
+.win-body .img-placeholder { cursor: auto; }
+.win-body .img-placeholder { cursor: pointer; }
+.win-body .connector { cursor: crosshair; }
+
+/* section label inside body */
+.section-label {
+  font-size: 10px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 3px;
+}
+
+/* ─── type-specific fields ───────────────────── */
+.type-field {
+  display: flex; align-items: center; gap: 6px;
+  background: #0c1118; border: 1px solid var(--panel-border);
+  border-radius: 8px; padding: 6px 10px;
+}
+.type-field label { font-size: 11px; color: var(--muted); flex: 0 0 auto; }
+.type-field input[type="text"],
+.type-field input[type="number"] {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 12px; font-family: inherit;
+}
+.type-field input[type="number"] { width: 50px; flex: 0 0 50px; }
+
+/* ─── картинка ───────────────────────────────── */
+.win-image img { width: 100%; border-radius: 10px; display: block; }
+.img-actions { display: flex; gap: 6px; }
+.img-placeholder {
+  width: 100%; border: 1px dashed var(--panel-border);
+  border-radius: 10px; padding: 12px;
+  text-align: center; color: var(--muted); font-size: 11px; cursor: pointer;
+}
+.img-placeholder:hover { border-color: var(--accent-d); color: var(--text); }
+.mini-btn {
+  font-size: 10px; color: var(--muted);
+  background: var(--card-head); border: 1px solid var(--panel-border);
+  border-radius: 6px; padding: 2px 7px; cursor: pointer;
+}
+.mini-btn:hover { color: var(--text); border-color: var(--accent-d); }
+
+/* ─── текст сообщения ────────────────────────── */
+.win-text {
+  font-size: 13px; line-height: 1.45;
+  white-space: pre-wrap; word-break: break-word;
+  outline: none; min-height: 20px;
+  padding: 6px 8px; border-radius: 8px;
+  background: #0c1118; border: 1px solid transparent;
+}
+.win-text:focus { border-color: var(--panel-border); }
+.win-text:empty:before { content: "Текст сообщения…"; color: var(--muted); }
+
+/* ─── заметка для ИИ ─────────────────────────── */
+.win-note-wrap { display: flex; flex-direction: column; gap: 0; }
+
+.note-toggle {
+  width: 100%; background: transparent;
+  border: 1px dashed rgba(46, 90, 62, .5);
+  color: var(--muted); border-radius: 8px;
+  padding: 5px 10px; font-size: 10px; cursor: pointer;
+  text-align: left; transition: color .12s, border-color .12s, background .12s;
+  font-family: inherit;
+}
+.note-toggle:hover { color: #8fd9a8; border-color: rgba(46,160,90,.4); }
+.note-toggle.has-note { color: #6ec990; border-color: rgba(46,160,90,.4); background: rgba(10,22,15,.4); }
+
+.win-note {
+  width: 100%; resize: vertical;
+  min-height: 56px; max-height: 140px;
+  background: #0a0f16; border: 1px solid #1e3a2a;
+  border-radius: 8px; padding: 6px 8px;
+  font-size: 11px; font-family: inherit;
+  color: #8fd9a8; line-height: 1.5;
+  outline: none; margin-top: 3px; cursor: text;
+}
+.win-note:focus { border-color: #2d6e4a; }
+.win-note::placeholder { color: #2d5240; }
+
+/* ─── кнопки Telegram ───────────────────────── */
+.btn-list { display: flex; flex-direction: column; gap: 4px; }
+
+.btn-row-holder { position: relative; overflow: visible; }
+
+/* auto-connector for command / input blocks */
+.auto-conn-holder { position: relative; overflow: visible; }
+.auto-conn-row {
+  font-size: 11px; border-radius: 8px; padding: 7px 10px;
+  user-select: none; line-height: 1.4;
+}
+.ac-input {
+  color: var(--c-input);
+  background: rgba(206,147,216,.08);
+  border: 1px dashed rgba(206,147,216,.35);
+}
+.ac-command {
+  color: var(--c-command);
+  background: rgba(76,175,80,.08);
+  border: 1px dashed rgba(76,175,80,.35);
+}
+
+.btn-row-holder.drag-placeholder {
+  height: 30px; background: rgba(78,161,255,.08);
+  border: 1px dashed var(--accent-d); border-radius: 8px;
+}
+
+.tg-btn-row {
+  display: flex; align-items: center; gap: 4px;
+  padding-right: 6px; /* leave gap near connector */
+}
+.tg-btn-row.dragging { opacity: .4; }
+.tg-btn-row.drag-over     { box-shadow: 0 -2px 0 var(--accent); }
+.tg-btn-row.drag-over-bottom { box-shadow: 0 2px 0 var(--accent); }
+
+.drag-handle {
+  cursor: grab; color: var(--muted);
+  font-size: 14px; padding: 0 2px; flex: 0 0 auto;
+  user-select: none;
+}
+.drag-handle:active { cursor: grabbing; }
+
+.tg-btn {
+  flex: 1; min-width: 0;
+  background: #253f5e; border: 1px solid #34557d;
+  color: #cfe2ff; border-radius: 8px;
+  padding: 7px 8px; font-size: 12px; text-align: center;
+  outline: none; cursor: text;
+}
+.tg-btn:focus { background: #2d4e74; }
+.tg-btn:empty:before { content: attr(data-placeholder); color: var(--muted); }
+
+/* condition type uses greenish buttons */
+.window.type-condition .tg-btn { background: #1e3d1e; border-color: #2d5e2d; color: #aff2a0; }
+.window.type-condition .tg-btn:focus { background: #254f25; }
+
+.btn-actions {
+  display: flex; align-items: center; gap: 2px; flex: 0 0 auto;
+  opacity: 0; transition: opacity .12s;
+}
+.btn-row-holder:hover .btn-actions { opacity: 1; }
+
+.btn-gear, .btn-del {
+  cursor: pointer; color: var(--muted); font-size: 12px;
+  padding: 3px; border-radius: 5px; line-height: 1;
+}
+.btn-gear:hover { color: var(--accent); background: rgba(78,161,255,.12); }
+.btn-del:hover  { color: #ff6b6b;       background: rgba(255,107,107,.12); }
+
+/* ─── Коннектор (кружок для стрелки) ─────────── */
+.connector {
+  position: absolute;
+  right: -18px;          /* center on window's right border */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--accent);
+  cursor: crosshair;
+  z-index: 25;            /* above window */
+  transition: background .12s, border-color .12s, transform .1s;
+  box-shadow: 0 0 0 3px var(--card); /* gap from window border */
+}
+.connector:hover {
+  background: var(--accent);
+  transform: translateY(-50%) scale(1.25);
+}
+.connector.connected { border-color: var(--accent); background: var(--accent-d); }
+.connector.hidden    { display: none; }
+
+/* settings popup */
+.btn-settings {
+  background: #0c1118; border: 1px solid var(--panel-border);
+  border-radius: 8px; padding: 8px;
+  margin-top: 4px;
+  display: flex; flex-direction: column; gap: 6px; font-size: 12px;
+}
+.btn-settings select,
+.btn-settings input {
+  width: 100%; background: var(--card); color: var(--text);
+  border: 1px solid var(--panel-border); border-radius: 6px;
+  padding: 5px 7px; font-size: 12px;
+}
+
+.add-btn {
+  background: transparent;
+  border: 1px dashed var(--panel-border);
+  color: var(--muted); border-radius: 8px;
+  padding: 6px; font-size: 11px; cursor: pointer;
+  width: 100%; text-align: center;
+}
+.add-btn:hover { color: var(--text); border-color: var(--accent-d); }
+
+/* ─── type-field select ──────────────────────── */
+.type-field select {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 12px; font-family: inherit; cursor: pointer;
+}
+
+/* ─── Кнопка Помощь в панели ─────────────────── */
+#btn-help {
+  background: linear-gradient(135deg, #1a2a3a, #1e3a2a);
+  border-color: #2a4a3a; color: #7fd9a8;
+}
+#btn-help:hover { background: linear-gradient(135deg, #1e3244, #223d2a); border-color: #3a6a4d; }
+
+/* ─── Модальное окно Помощь ──────────────────── */
+@keyframes helpFadeIn { from { opacity:0; transform: scale(.97); } to { opacity:1; transform: scale(1); } }
+
+.help-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.78);
+  z-index: 2000;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+.help-modal {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  width: min(1100px, 100%);
+  padding: 28px;
+  display: flex; flex-direction: column; gap: 28px;
+  animation: helpFadeIn .18s ease;
+  margin: auto;
+}
+.help-modal-hdr {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.help-modal-title { font-size: 22px; font-weight: 700; color: var(--accent); }
+.help-modal-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.help-close {
+  flex: 0 0 auto; background: var(--card); border: 1px solid var(--panel-border);
+  color: var(--muted); font-size: 16px; cursor: pointer;
+  padding: 5px 10px; border-radius: 8px;
+}
+.help-close:hover { color: var(--text); border-color: var(--accent-d); }
+
+/* ─── Справка по типам блоков ────────────────── */
+.help-section-title {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  margin-bottom: 10px;
+}
+.help-types-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px;
+}
+.help-type-card {
+  background: var(--card); border: 1px solid var(--panel-border);
+  border-radius: 10px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.help-type-head { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.help-type-icon { font-size: 15px; }
+.help-type-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.help-type-example {
+  font-size: 10px; color: #6ec990; font-style: italic; margin-top: 2px;
+}
+
+/* ─── Шаблоны ────────────────────────────────── */
+.help-templates {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 14px;
+}
+.help-card {
+  background: var(--card); border: 1px solid var(--panel-border);
+  border-radius: 12px; padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.help-card-hdr { display: flex; align-items: center; gap: 8px; }
+.help-card-icon { font-size: 20px; }
+.help-card-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.help-card-desc { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+.help-flow {
+  background: #0c1118; border: 1px solid var(--panel-border);
+  border-radius: 8px; padding: 10px 12px;
+  font-size: 11px; font-family: "Cascadia Code", "Consolas", monospace;
+  color: #a8c8e8; line-height: 1.7; white-space: pre;
+}
+
+.help-steps { display: flex; flex-direction: column; gap: 5px; }
+.help-step { display: flex; gap: 8px; align-items: flex-start; font-size: 11px; }
+.help-step-num {
+  flex: 0 0 18px; height: 18px; border-radius: 50%;
+  background: var(--card-head); color: var(--accent);
+  font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.help-step-text { color: var(--muted); line-height: 1.5; flex: 1; }
+.help-step-text b { color: var(--text); }
+
+.help-load-btn {
+  margin-top: auto; padding: 8px 14px;
+  background: var(--accent-d); color: #fff;
+  border: none; border-radius: 8px; font-size: 12px; font-weight: 600;
+  cursor: pointer; text-align: center; transition: background .12s;
+}
+.help-load-btn:hover { background: var(--accent); }

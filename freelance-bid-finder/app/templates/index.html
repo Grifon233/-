@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заявки</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}?v=20260702-1">
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <script src="{{ url_for('static', filename='app.js') }}?v=20260702-1" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <i data-lucide="radar"></i>
+        </div>
+        <div>
+          <h1>Заявки</h1>
+          <div class="statusline">
+            <span class="status-dot" id="scanDot"></span>
+            <span id="scanStatus">Загрузка</span>
+          </div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-button" id="notifyButton" title="Включить уведомления">
+          <i data-lucide="bell"></i>
+        </button>
+        <button class="primary-button" id="scanButton">
+          <i data-lucide="refresh-cw"></i>
+          Проверить
+        </button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section class="panel">
+          <div class="metric-grid">
+            <div class="metric">
+              <span>Непрочитано</span>
+              <strong id="unreadCount">0</strong>
+            </div>
+            <div class="metric">
+              <span>Всего</span>
+              <strong id="totalCount">0</strong>
+            </div>
+          </div>
+          <button class="secondary-button full" id="readAllButton">
+            <i data-lucide="check-check"></i>
+            Все прочитано
+          </button>
+          <button class="secondary-button full" id="actionLogButton">
+            <i data-lucide="history"></i>
+            Журнал <span id="actionCount">0</span>
+          </button>
+        </section>
+
+        <section class="panel">
+          <label class="field-label" for="searchInput">Поиск</label>
+          <input id="searchInput" class="input" type="search" placeholder="бот, CRM, API">
+
+          <div class="field-label gap-top">Источники</div>
+          <label class="check-row">
+            <input type="checkbox" value="kwork" checked>
+            <span class="source-dot source-kwork"></span>
+            Kwork
+          </label>
+          <label class="check-row">
+            <input type="checkbox" value="fl_ru" checked>
+            <span class="source-dot source-fl_ru"></span>
+            FL.ru
+          </label>
+          <label class="check-row">
+            <input type="checkbox" value="freelance_ru" checked>
+            <span class="source-dot source-freelance_ru"></span>
+            Freelance.ru
+          </label>
+          <label class="check-row gap-top">
+            <input id="unreadOnly" type="checkbox">
+            Только непрочитанные
+          </label>
+        </section>
+
+        <section class="panel compact">
+          <div class="small-row">
+            <span>Последняя проверка</span>
+            <strong id="lastScan">-</strong>
+          </div>
+          <div class="small-row">
+            <span>Следующая</span>
+            <strong id="nextScan">-</strong>
+          </div>
+          <div class="small-row">
+            <span>Интервал</span>
+            <strong>2 часа</strong>
+          </div>
+        </section>
+      </aside>
+
+      <section class="feed-panel">
+        <div class="feed-toolbar">
+          <div>
+            <h2>Подходящие задачи</h2>
+            <span id="feedHint">Фильтр: автоматизация, чат-боты, CRM, AI, интеграции</span>
+          </div>
+          <div class="source-counters" id="sourceCounters"></div>
+        </div>
+        <div class="feed" id="leadList"></div>
+      </section>
+    </main>
+  </div>
+  <div class="modal-backdrop" id="actionModal" hidden>
+    <section class="modal">
+      <div class="modal-head">
+        <h2>Журнал действий</h2>
+        <button class="icon-button" id="closeActionLogButton" title="Закрыть">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="hidden-list" id="actionList"></div>
+    </section>
+  </div>
+</body>
+</html>

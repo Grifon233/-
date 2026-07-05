@@ -1,0 +1,155 @@
+/* ====== Тема (с учётом Telegram theme params, с запасными значениями) ====== */
+:root {
+  --bg: var(--tg-theme-bg-color, #f4f5f7);
+  --surface: var(--tg-theme-secondary-bg-color, #ffffff);
+  --text: var(--tg-theme-text-color, #1c1e21);
+  --hint: var(--tg-theme-hint-color, #8a8f98);
+  --accent: var(--tg-theme-button-color, #e5397f);
+  --accent-text: var(--tg-theme-button-text-color, #ffffff);
+  --danger: #e23b3b;
+  --ok: #2faf5a;
+  --radius: 16px;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.10);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+.hidden { display: none !important; }
+.screen { position: absolute; inset: 0; }
+
+/* ====== Экран выбора города ====== */
+.screen-city {
+  display: flex; flex-direction: column;
+  padding: 28px 20px calc(20px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(229, 57, 127, 0.16), transparent 60%),
+    var(--bg);
+  overflow-y: auto;
+}
+.city-hero { text-align: center; margin: 14px 0 22px; }
+.logo-badge {
+  width: 76px; height: 76px; margin: 0 auto 14px;
+  display: grid; place-items: center;
+  font-size: 38px; border-radius: 24px;
+  background: linear-gradient(135deg, #ff7eb3, #e5397f);
+  box-shadow: 0 10px 30px rgba(229, 57, 127, 0.35);
+}
+.city-hero h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.3px; }
+.subtitle { margin: 8px 0 0; color: var(--hint); font-size: 15px; }
+
+.city-list { display: flex; flex-direction: column; gap: 12px; max-width: 480px; width: 100%; margin: 0 auto; }
+.city-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  cursor: pointer; text-align: left;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.city-card:active { transform: scale(0.985); }
+.city-card:hover { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14); }
+.city-emoji {
+  width: 48px; height: 48px; flex: 0 0 48px;
+  display: grid; place-items: center; font-size: 24px;
+  border-radius: 14px; background: rgba(229, 57, 127, 0.10);
+}
+.city-info { flex: 1 1 auto; min-width: 0; }
+.city-name { display: block; font-size: 17px; font-weight: 700; }
+.city-pop { display: block; font-size: 13px; color: var(--hint); margin-top: 3px; }
+.city-arrow { color: var(--hint); font-size: 20px; }
+.hero-footer { text-align: center; color: var(--hint); font-size: 12px; margin-top: 18px; }
+
+/* ====== Экран карты ====== */
+.screen-map { display: flex; flex-direction: column; }
+.topbar {
+  position: relative; z-index: 600;
+  display: flex; align-items: center;
+  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+  background: var(--surface);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.topbar-city {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; background: transparent; cursor: pointer;
+  font-size: 18px; font-weight: 800; color: var(--text);
+  padding: 6px 4px;
+}
+.topbar-city .chev { color: var(--accent); font-size: 14px; }
+.topbar-spacer { flex: 1; }
+
+.map { flex: 1; width: 100%; background: #e8eaed; z-index: 1; }
+
+/* ====== Боковая панель: статус + обратная связь ====== */
+.side-panel {
+  position: absolute; right: 12px; top: calc(58px + env(safe-area-inset-top));
+  z-index: 600; display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
+}
+.status-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 999px;
+  background: var(--surface); box-shadow: var(--shadow);
+  font-size: 13px; font-weight: 600; max-width: 70vw;
+}
+.status-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
+.status-ok    .status-dot { background: var(--ok); }
+.status-ok    #status-text { color: var(--ok); }
+.status-error .status-dot { background: var(--danger); animation: pulse 1.2s infinite; }
+.status-error #status-text { color: var(--danger); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.btn-feedback {
+  border: none; cursor: pointer;
+  padding: 10px 14px; border-radius: 999px;
+  background: var(--surface); color: var(--text);
+  box-shadow: var(--shadow); font-size: 13px; font-weight: 600;
+}
+.btn-feedback:active { transform: scale(0.97); }
+
+/* ====== Модальное окно ====== */
+.modal {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid; place-items: center; padding: 18px;
+  background: rgba(0, 0, 0, 0.45);
+}
+.modal-card {
+  width: 100%; max-width: 440px;
+  background: var(--surface); color: var(--text);
+  border-radius: 20px; padding: 22px; box-shadow: var(--shadow);
+}
+.modal-card h2 { margin: 0 0 6px; font-size: 19px; }
+.modal-hint { margin: 0 0 14px; color: var(--hint); font-size: 14px; }
+#feedback-text {
+  width: 100%; resize: vertical; font: inherit; color: var(--text);
+  padding: 12px; border-radius: 12px; border: 1px solid rgba(0, 0, 0, 0.14);
+  background: var(--bg);
+}
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+.btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; }
+.btn-primary { background: var(--accent); color: var(--accent-text); }
+.btn-ghost { background: transparent; color: var(--hint); border: 1px solid rgba(0,0,0,0.12); }
+.btn:active { transform: scale(0.98); }
+.btn[disabled] { opacity: 0.55; cursor: default; }
+
+/* ====== Тост ====== */
+.toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%); z-index: 1100;
+  padding: 12px 18px; border-radius: 12px; max-width: 86vw;
+  background: #2b2d31; color: #fff; font-size: 14px; box-shadow: var(--shadow);
+}
+.toast.toast-error { background: var(--danger); }
+.toast.toast-ok { background: var(--ok); }
+
+/* Подсветка занятой улицы на карте (Leaflet path) задаётся в JS,
+   здесь — стиль попапа с цитатами. */
+.quote { font-size: 13px; padding: 6px 0; border-top: 1px solid rgba(0,0,0,0.08); }
+.quote:first-child { border-top: none; }
+.quote a { color: var(--accent); text-decoration: none; }

@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Taste Skill Design System - Neutral Zinc + Single Accent */
+    --background: 240 10% 98%;
+    --foreground: 240 6% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 6% 10%;
+    /* Single accent: Electric Cyan - NO purple/blue gradients */
+    --primary: 187 92% 44%;
+    --primary-foreground: 240 6% 10%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 187 92% 44%;
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 240 10% 6%;
+    --foreground: 240 5% 96%;
+    --card: 240 8% 10%;
+    --card-foreground: 240 5% 96%;
+    --popover: 240 8% 10%;
+    --popover-foreground: 240 5% 96%;
+    /* Single accent preserved in dark mode */
+    --primary: 187 92% 54%;
+    --primary-foreground: 240 10% 6%;
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 240 5% 96%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 64%;
+    --accent: 240 4% 16%;
+    --accent-foreground: 240 5% 96%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 4% 20%;
+    --input: 240 4% 20%;
+    --ring: 187 92% 54%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
+  }
+  h1, h2, h3, h4 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Custom scrollbar for premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Grain texture overlay */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}

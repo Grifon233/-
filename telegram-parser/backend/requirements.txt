@@ -1,0 +1,62 @@
+fastapi>=0.103.0
+uvicorn[standard]>=0.23.2
+sqlalchemy>=2.0.20
+asyncpg>=0.28.0
+aiosqlite>=0.19.0
+alembic>=1.12.0
+python-dotenv>=1.0.0
+pydantic>=2.3.0
+pydantic-settings>=2.0.3
+celery>=5.3.4
+redis>=5.0.0
+# redis is already required by Celery's broker; the rate limiter uses
+# redis.asyncio, which lives in the same package. No extra dep needed.
+pyrogram>=2.0.106
+# TgCrypto ships prebuilt wheels and dramatically speeds up Pyrogram
+# encryption. The previous audit (HIGH-013) flagged this as a
+# warning; the dependency is now declared so a fresh ``pip install``
+# picks it up automatically.
+#
+# IMPORTANT (2026-06-06): there is no prebuilt ``tgcrypto`` wheel for
+# Python 3.12 on Windows and building it from source requires the
+# Microsoft C++ Build Tools (~1 GB). The project ships a pure-Python
+# drop-in replacement at ``app/services/_compat/tgcrypto_stub.py``
+# (backed by ``pycryptodome``) so the TData import flow works on
+# stock Python 3.12 without Visual Studio. If you are on Linux or an
+# older Python you can keep the real ``tgcrypto`` and it will
+# transparently replace the shim.
+tgcrypto>=1.2.5; python_version < "3.12"
+# pycryptodome is the AES-256-IGE / CTR / CBC backend for the shim
+# above. It has prebuilt wheels for every platform and Python version
+# we support.
+pycryptodome>=3.20.0
+# Telegram Desktop ``tdata`` import. ``opentele`` parses the encrypted
+# tdata folder; ``PyQt5`` is required for the binary stream parser
+# (``PyQt5.QtCore.QDataStream``). PyQt5 ships prebuilt wheels for
+# Windows so no compiler is needed.
+opentele>=1.15.0
+PyQt5>=5.15.0
+# Telethon is the bridge opentele uses to convert a tdata session
+# into a Pyrogram StringSession. We never connect to Telegram from
+# the bridge — the auth key is copied across.
+telethon>=1.30.0
+# TGConvertor is a higher-level wrapper around opentele + tgcrypto
+# with a friendly ``from_tdata_folder`` / ``to_pyrogram_string`` API.
+# Optional — the project falls back to opentele directly if it is
+# missing.
+TGConvertor>=0.1.0
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+python-multipart>=0.0.6
+email-validator>=2.0.0
+httpx[http2]
+httpx-socks
+# Cryptography is required for the encrypted session_string / api_hash
+# columns. Pulled in transitively by ``python-jose[cryptography]``,
+# but pinned here so a future cleanup of the jose dependency doesn't
+# silently break the encryption layer.
+cryptography>=41.0.0
+openai>=1.0.0
+openpyxl
+pytest
+pytest-asyncio
