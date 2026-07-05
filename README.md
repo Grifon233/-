@@ -1,16 +1,16 @@
-# Portfolio Projects
+# Портфолио проектов
 
 Короткая витрина проектов. Каждый проект лежит в отдельной папке.
 
-| Project | Description |
+| Проект | Описание |
 | --- | --- |
-| [courier-dashboard](./courier-dashboard) | Dashboard and mini app for courier-route monitoring, city data, feedback collection, and route-related backend services. |
-| [deepseek-sales-assistant](./deepseek-sales-assistant) | Sales assistant panel powered by DeepSeek-style chat logic, agent profiles, sales cases, and tool-assisted reply generation. |
-| [equipment-screenshot-parser](./equipment-screenshot-parser) | Python crawler/parser for collecting and processing heavy-equipment dealer screenshot data. |
-| [freelance-bid-finder](./freelance-bid-finder) | Freelance marketplace scanner that filters relevant leads, scores opportunities, and serves a small web interface for reviewing requests. |
-| [hh-autoclicker](./hh-autoclicker) | Automation toolkit for hh.ru workflows, including vacancy search, resume operations, API calls, storage, and a local UI layer. |
-| [keyboard-builder](./keyboard-builder) | Browser-based keyboard layout constructor with canvas rendering, button configuration, connections, import/export, and smoke testing. |
-| [master-booking-app](./master-booking-app) | Booking platform with backend services, master/client flows, Telegram/VK bot integrations, subscriptions, payments, and a web interface. |
-| [prometheus-ai-assistant](./prometheus-ai-assistant) | Large AI assistant platform with CLI, web UI, desktop app pieces, gateway integrations, plugins, providers, and automation tooling. |
-| [telegram-parser](./telegram-parser) | Fullstack Telegram parsing and automation system with backend APIs, frontend dashboard, account/proxy management, parsing tasks, and campaign tools. |
-| [tube-booking-bot](./tube-booking-bot) | Telegram bot for booking and training workflows, with handlers, keyboards, storage, scheduling, LLM service integration, and database utilities. |
+| [courier-dashboard](./courier-dashboard) | Дашборд и mini app для мониторинга курьерских маршрутов, работы с городскими данными, сбора обратной связи и backend-сервисов по маршрутам. |
+| [deepseek-sales-assistant](./deepseek-sales-assistant) | Панель ИИ-продавца с логикой диалогов, профилями агентов, продажными сценариями и генерацией ответов с использованием инструментов. |
+| [equipment-screenshot-parser](./equipment-screenshot-parser) | Python-парсер для сбора и обработки данных по дилерам спецтехники на основе скриншотов и страниц сайтов. |
+| [freelance-bid-finder](./freelance-bid-finder) | Сканер фриланс-бирж, который отбирает релевантные заявки, оценивает их и показывает найденные возможности в небольшом веб-интерфейсе. |
+| [hh-autoclicker](./hh-autoclicker) | Набор инструментов для автоматизации hh.ru: поиск вакансий, операции с резюме, API-запросы, локальное хранилище и UI-слой. |
+| [keyboard-builder](./keyboard-builder) | Браузерный конструктор клавиатурных раскладок с canvas-отрисовкой, настройкой кнопок, связями и импортом/экспортом. |
+| [master-booking-app](./master-booking-app) | Платформа записи к мастеру с backend-сервисами, клиентскими и мастерскими сценариями, Telegram/VK-ботами, подписками, платежами и веб-интерфейсом. |
+| [prometheus-ai-assistant](./prometheus-ai-assistant) | Крупная платформа ИИ-ассистента с CLI, web UI, desktop-компонентами, gateway-интеграциями, плагинами, провайдерами и automation-инструментами. |
+| [telegram-parser](./telegram-parser) | Fullstack-система для Telegram-парсинга и автоматизации: backend API, frontend-панель, управление аккаунтами и прокси, задачи парсинга и кампании. |
+| [tube-booking-bot](./tube-booking-bot) | Telegram-бот для записи и тренировочных сценариев с обработчиками, клавиатурами, хранилищем, расписанием, LLM-интеграцией и database-утилитами. |
