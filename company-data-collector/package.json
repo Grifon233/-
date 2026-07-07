@@ -1,0 +1,17 @@
+{
+  "name": "b2b-lead-enricher-server",
+  "version": "1.0.0",
+  "description": "B2B Lead Enrichment & Validation Tool Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node scripts/smoke-test.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "express": "^4.19.2",
+    "ru-codes": "^1.0.8",
+    "socks": "^2.8.9",
+    "socks-proxy-agent": "^10.1.0"
+  }
+}

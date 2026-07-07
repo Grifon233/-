@@ -1,0 +1,13 @@
+.env
+.env.*
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+node_modules/
+dist/
+build/
+.cache/
+.DS_Store
+Thumbs.db

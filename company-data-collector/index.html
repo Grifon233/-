@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка компаний</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="split-container">
+        
+        <!-- LEFT PANEL: Controls & Limit Info -->
+        <aside class="sidebar-control">
+            <!-- Main Input Form -->
+            <div class="control-card">
+                <div class="card-heading">
+                    <h3>Проверка компаний</h3>
+                    <p>Сервис помогает быстро понять, какие контакты можно использовать: общую почту, возможные рабочие email, телефоны, ИНН, соцсети и технологии сайта.</p>
+                </div>
+                <div class="service-guide">
+                    <p><strong>Как применять:</strong> вставьте домен компании и нажмите “Начать проверку”.</p>
+                    <p><strong>Что получите:</strong> почтового провайдера, список возможных email, телефоны, найденные соцсети, ИНН и технические признаки сайта.</p>
+                    <p><strong>Что важно:</strong> некоторые домены принимают любой случайный email. В таком случае сервис покажет, что точную проверку ящика выполнить нельзя.</p>
+                    <p><strong>Ограничение сканирования:</strong> сервис читает HTML-код сайта и видит только то, что доступно в коде страницы. Если контакт, соцсеть или другая информация есть визуально, но не выделена ссылкой, спрятана в картинке, подгружается закрытым скриптом или никак не обозначена в HTML, сервис может ее не найти. Поэтому “не найдено” не всегда означает, что данных на сайте нет.</p>
+                </div>
+                <form id="enrich-form" class="scan-form">
+                    <fieldset class="scan-fieldset">
+                        <legend>Домены</legend>
+                        <div class="form-group">
+                            <label for="domain-input">Список доменов <span class="required">*</span></label>
+                            <textarea id="domain-input" rows="6" placeholder="sibirix.ru&#10;https://id.freelance.ru/login&#10;apple.com/contacts" required></textarea>
+                            <span class="help-text">Вставьте один или несколько сайтов. Можно писать site.ru или полную ссылку: сервис сам уберет https, www и путь после слэша.</span>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="scan-fieldset">
+                        <legend>ЛПР</legend>
+                        <div class="fieldset-note">Необязательно. Если вы знаете имя и фамилию человека, сервис попробует проверить варианты его рабочей почты.</div>
+                        <div class="form-group-row person-grid">
+                            <div class="form-group">
+                                <label for="first-name">Имя</label>
+                                <input type="text" id="first-name" placeholder="Иван">
+                            </div>
+                            <div class="form-group">
+                                <label for="last-name">Фамилия</label>
+                                <input type="text" id="last-name" placeholder="Иванов">
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="scan-fieldset proxy-fieldset">
+                        <legend>Прокси</legend>
+                        <div class="fieldset-note">Добавление прокси позволяет работать без лимита общего серверного IP. Когда проверка идет через прокси, почтовые серверы видят IP вашего SOCKS5-прокси, поэтому лимит расходуется с него. Пока прокси работает и пропускает SMTP-подключения, вы можете продолжать проверки через него.</div>
+                        <label class="checkbox-row" for="proxy-pool-enabled">
+                            <input type="checkbox" id="proxy-pool-enabled">
+                            <span>Использовать пул SOCKS5-прокси</span>
+                        </label>
+
+                        <div class="proxy-pool-body" id="proxy-pool-body" style="display: none;">
+                            <div class="proxy-pool-head">
+                                <span>SOCKS5 строки</span>
+                                <span id="proxy-total-limit">0 проверок</span>
+                            </div>
+                            <div id="proxy-pool-rows" class="proxy-pool-rows"></div>
+                            <div class="proxy-actions">
+                                <button type="button" class="secondary-btn compact-btn" id="add-proxy-row-btn">Добавить прокси</button>
+                                <button type="button" class="secondary-btn compact-btn" id="test-proxy-pool-btn">Проверить пул</button>
+                            </div>
+                            <div class="help-text">
+                                Нужен именно SOCKS5-прокси. Если прокси плохой или закрывает порт 25, точная проверка почты через него не пройдет. HTTP/HTTPS-прокси для этой задачи обычно не подходят.
+                            </div>
+                            <div id="proxy-test-result" class="proxy-test-result"></div>
+                        </div>
+                    </fieldset>
+                    
+                    <button type="submit" class="primary-btn" id="submit-enrich-btn">
+                        <span>Начать проверку</span>
+                        <svg class="btn-icon-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+
+            <!-- SaaS limits widget -->
+            <div class="control-card limit-widget" id="limit-widget-container">
+                <div class="limit-header">
+                    <h4>Суточный лимит проверок</h4>
+                    <span class="limit-counter" id="limit-display">0 / 20</span>
+                </div>
+                
+                <div class="progress-bar-container">
+                    <div class="progress-bar-segment first-segment">
+                        <div class="progress-fill" id="fill-first-half" style="width: 0%;"></div>
+                    </div>
+                    <div class="progress-bar-segment second-segment">
+                        <div class="progress-fill" id="fill-second-half" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <div class="limit-status-label" id="limit-status-text">Загрузка лимитов...</div>
+
+                <div class="limit-explanation">
+                    <h5>Зачем нужны ограничения?</h5>
+                    <p>Наш сервис выполняет реальные SMTP-запросы к почтовым серверам компаний. Если отправлять слишком много запросов подряд с одного сервера, его IP попадет в спам-листы (Spamhaus, Sorbs), что сделает невозможной проверку для других.</p>
+                    <p>Для защиты IP сервера лимит разделен на две части по 10 проверок. Достигнув 10 проверок, система активирует <strong>паузу в 1,5 часа</strong> для очистки репутации IP, после чего открывается вторая часть лимита.</p>
+                </div>
+            </div>
+            
+            <div class="system-status-badge" id="port-status-banner">
+                <span class="pulse-dot"></span> Проверка статуса...
+            </div>
+        </aside>
+
+        <!-- RIGHT PANEL: Dashboard Workspace -->
+        <main class="main-workspace">
+            <div class="results-toolbar">
+                <button type="button" class="collapse-results-btn" id="collapse-results-btn" aria-label="Свернуть результаты" title="Свернуть результаты">‹</button>
+                <div>
+                    <strong>Результаты проверки</strong>
+                    <span>Можно свернуть и вернуться к настройкам.</span>
+                </div>
+            </div>
+            
+            <!-- Global Port Blocked Warning -->
+            <div id="port-warning-box" class="warning-banner" style="display: none;">
+                <svg class="warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/>
+                </svg>
+                <div class="warning-text">
+                    <strong>Внимание! Исходящий порт 25 заблокирован вашим провайдером.</strong>
+                    Точная проверка конкретных ящиков временно недоступна. Сервис сможет показать общие данные домена, но не сможет подтвердить, работает ли конкретный email.
+                </div>
+            </div>
+
+            <!-- Empty State placeholder -->
+            <div class="empty-workspace-state" id="empty-state-view" style="display: none;" aria-live="polite">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <h2>Проверка запущена</h2>
+                <p>Результаты появятся здесь после обработки первого домена.</p>
+            </div>
+
+            <!-- Combined Results Wrapper -->
+            <div class="results-layout" id="results-wrapper" style="display: none;">
+                <div class="domain-report-list" id="domain-report-list">
+                    <!-- Dynamic per-domain reports -->
+                </div>
+
+                <div class="results-section" id="mx-results-section" style="display: none;">
+                    <h4>Почтовые серверы доменов</h4>
+                    <div class="table-responsive">
+                        <table class="leads-table">
+                            <thead>
+                                <tr>
+                                    <th>Домен</th>
+                                    <th>Почта</th>
+                                    <th>Провайдер</th>
+                                    <th>MX записи</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mx-table-body">
+                                <!-- Dynamic MX rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
