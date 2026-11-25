@@ -1,33 +1,56 @@
-"""Backend проекта «Курьеры». Точка входа FastAPI.
-
-Запуск локально:
-    cd backend
-    python -m venv .venv && . .venv/Scripts/activate   # Windows
-    pip install -r requirements.txt
-    cp .env.example .env
-    uvicorn app.main:app --reload
-
-После запуска:
-    Приложение (Mini App):  http://127.0.0.1:8000/app/
-    Документация API:        http://127.0.0.1:8000/docs
-"""
+"""Backend проекта «Курьеры»: API и Mini App на одном origin."""
+import asyncio
+import logging
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
+from app.config import settings
+from app.middleware import RequestSizeLimit
 from app.routers import feedback, ingest, route, streets
+from app.services.sightings import store
 
-app = FastAPI(title="Курьеры — backend", version="0.2.0")
+logger = logging.getLogger(__name__)
 
-# Mini App открывается внутри Telegram (чужой origin) -> разрешаем CORS.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+async def _cleanup_expired() -> None:
+    while True:
+        await asyncio.sleep(min(settings.sighting_ttl, 60))
+        try:
+            await run_in_threadpool(store.purge_expired)
+        except Exception as exc:
+            logger.error("Sightings cleanup failed (%s)", type(exc).__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    cleanup = asyncio.create_task(_cleanup_expired())
+    try:
+        yield
+    finally:
+        cleanup.cancel()
+        with suppress(asyncio.CancelledError):
+            await cleanup
+
+
+app = FastAPI(title="Курьеры — backend", version="0.3.0", lifespan=lifespan)
+app.add_middleware(RequestSizeLimit)
+
+# В Telegram WebView страницы и запросы к API идут с одного origin.
+# При отдельном хостинге Mini App разрешаем только явно настроенные origin.
+origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+if origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
 
 app.include_router(ingest.router, tags=["ingest"])
 app.include_router(streets.router, tags=["streets"])
@@ -40,7 +63,10 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
-# Отдаём само приложение (miniapp/) с того же сервера: http://127.0.0.1:8000/app/
 _MINIAPP_DIR = Path(__file__).resolve().parents[2] / "miniapp"
 if _MINIAPP_DIR.is_dir():
+    @app.get("/", include_in_schema=False)
+    async def home() -> RedirectResponse:
+        return RedirectResponse(url="/app/")
+
     app.mount("/app", StaticFiles(directory=str(_MINIAPP_DIR), html=True), name="miniapp")

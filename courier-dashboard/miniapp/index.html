@@ -2,72 +2,75 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Курьеры — карта</title>
 
-  <!-- Telegram Mini App SDK (работает и вне Telegram — просто без эффекта) -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- Карта: Leaflet + OpenStreetMap (open-source, без ключей) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+  <script async id="telegram-sdk" src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="css/styles.css" />
+  <script defer src="vendor/leaflet/leaflet.js"></script>
+  <script defer src="js/cities.js"></script>
+  <script defer src="js/api.js"></script>
+  <script defer src="js/app.js"></script>
 </head>
 <body>
 
   <!-- ЭКРАН 1: выбор города -->
-  <section id="screen-city" class="screen screen-city">
+  <main id="screen-city" class="screen screen-city" aria-labelledby="city-title">
     <div class="city-hero">
-      <div class="logo-badge">🌸</div>
-      <h1>Карта курьеров</h1>
+      <div class="logo-badge" aria-hidden="true">🌸</div>
+      <h1 id="city-title" tabindex="-1">Карта курьеров</h1>
       <p class="subtitle">Выберите город, чтобы открыть карту</p>
     </div>
-    <div id="city-list" class="city-list" role="list"></div>
+    <ul id="city-list" class="city-list" role="list"></ul>
+    <noscript><p>Чтобы выбрать город и открыть карту, включите JavaScript в браузере.</p></noscript>
     <div class="hero-footer">Можно сменить город в любой момент</div>
-  </section>
+  </main>
 
   <!-- ЭКРАН 2: карта города -->
-  <section id="screen-map" class="screen screen-map hidden">
+  <main id="screen-map" class="screen screen-map" aria-labelledby="current-city-name" hidden>
     <header class="topbar">
-      <button id="btn-change-city" class="topbar-city" aria-label="Сменить город">
-        <span id="current-city-name">Город</span>
-        <span class="chev">▾</span>
+      <h1 id="current-city-name" tabindex="-1">Город</h1>
+      <button type="button" id="btn-change-city" class="control">
+        Сменить город <span class="chev" aria-hidden="true">▾</span>
       </button>
-      <div class="topbar-spacer"></div>
     </header>
 
-    <div id="map" class="map"></div>
-
-    <!-- Боковая панель статуса + обратная связь -->
-    <aside class="side-panel">
-      <div id="status-chip" class="status-chip status-ok">
-        <span class="status-dot"></span>
+    <div class="map-tools">
+      <div id="status-chip" class="status-chip status-loading" role="status">
+        <span class="status-dot" aria-hidden="true"></span>
         <span id="status-text">Загрузка…</span>
       </div>
-      <button id="btn-feedback" class="btn-feedback" aria-label="Сообщить о проблеме">
-        ⚠️ Сообщить о проблеме
-      </button>
-    </aside>
-  </section>
-
-  <!-- Модальное окно обратной связи -->
-  <div id="feedback-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="fb-title">
-    <div class="modal-card">
-      <h2 id="fb-title">Сообщить о проблеме</h2>
-      <p class="modal-hint">Опишите, что работает неправильно. Сообщение придёт владельцу.</p>
-      <textarea id="feedback-text" maxlength="2000" rows="5" placeholder="Например: улица не подсвечивается, карта не грузится…"></textarea>
-      <div class="modal-actions">
-        <button id="fb-cancel" class="btn btn-ghost">Отмена</button>
-        <button id="fb-send" class="btn btn-primary">Отправить</button>
+      <div class="map-actions">
+        <button type="button" id="btn-refresh" class="control">Обновить</button>
+        <button type="button" id="btn-feedback" class="control">Сообщить о проблеме</button>
       </div>
     </div>
-  </div>
+    <p id="map-note" class="map-note" role="status"></p>
+    <div id="map" class="map" role="region" aria-label="Интерактивная карта"></div>
+    <details id="street-panel" class="street-panel" hidden>
+      <summary id="street-summary">Список улиц</summary>
+      <ul id="street-list" class="street-list" role="list"></ul>
+    </details>
+  </main>
+
+  <!-- Модальное окно обратной связи -->
+  <dialog id="feedback-modal" class="modal" aria-labelledby="fb-title" aria-describedby="fb-hint">
+    <form id="feedback-form" class="modal-card" novalidate>
+      <h2 id="fb-title">Сообщить о проблеме</h2>
+      <p id="fb-hint" class="modal-hint">Сообщение придёт владельцу приложения. Не указывайте личные данные.</p>
+      <label for="feedback-text">Что работает неправильно?</label>
+      <textarea id="feedback-text" maxlength="2000" rows="5" required aria-describedby="feedback-error"
+        placeholder="Например, улица не подсвечивается"></textarea>
+      <p id="feedback-error" class="feedback-error" role="alert"></p>
+      <div class="modal-actions">
+        <button type="button" id="fb-cancel" class="btn btn-ghost">Отмена</button>
+        <button type="submit" id="fb-send" class="btn btn-primary">Отправить</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- Тост-уведомление -->
-  <div id="toast" class="toast hidden"></div>
-
-  <script src="js/cities.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/app.js"></script>
+  <div id="toast" class="toast hidden" role="status"></div>
 </body>
 </html>

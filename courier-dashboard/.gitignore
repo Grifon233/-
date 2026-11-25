@@ -1,10 +1,12 @@
 .env
 .env.*
+!.env.example
 accounts.yml
 sources.yml
 **/accounts.yml
 **/sources.yml
 **/sessions/
+failed_ingest.jsonl
 *.session
 *.session-journal
 *.db
@@ -29,3 +31,4 @@ Thumbs.db
 secrets.json
 .mypy_cache/
 .ruff_cache/
+tests_e2e/shots/

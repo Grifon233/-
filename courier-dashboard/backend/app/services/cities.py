@@ -15,7 +15,7 @@ CITY_ALIASES = {
 
 
 def _key(value: str) -> str:
-    value = unicodedata.normalize("NFKD", value)
+    value = unicodedata.normalize("NFKC", value)
     value = "".join(ch for ch in value if not unicodedata.combining(ch))
     value = value.casefold().replace("ё", "е")
     return re.sub(r"[^a-zа-я0-9]+", " ", value).strip()
@@ -29,6 +29,6 @@ _LOOKUP = {
 
 
 def normalize_city(value: str | None) -> str | None:
-    if not value:
+    if not isinstance(value, str) or not value:
         return None
     return _LOOKUP.get(_key(value))

@@ -1,0 +1,15 @@
+**
+!backend/
+!backend/requirements.txt
+!backend/app/
+!backend/app/**
+!miniapp/
+!miniapp/index.html
+!miniapp/css/
+!miniapp/css/**
+!miniapp/js/
+!miniapp/js/**
+!miniapp/vendor/
+!miniapp/vendor/**
+**/__pycache__/
+**/*.pyc

@@ -1,4 +1,8 @@
 """Тесты backend: позитивные и негативные сценарии всех эндпоинтов."""
+import asyncio
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -30,11 +34,14 @@ def clean_store(monkeypatch):
             "coordinates": [[37.61, 55.75], [37.62, 55.76]],
         }
 
+    MSG["ts"] = datetime.now(timezone.utc).isoformat()
     monkeypatch.setattr(settings, "ingest_api_key", "")
+    monkeypatch.setattr(settings, "ingest_allow_unauthenticated", True)
     monkeypatch.setattr(settings, "llm_api_keys_file", "")
     monkeypatch.setattr(settings, "anthropic_api_key", "")
     monkeypatch.setattr(ingest_module, "geocode_street", fake_geocode)
     feedback_module._requests.clear()
+    feedback_module._global_requests.clear()
     store.clear()
     yield
     store.clear()
@@ -166,8 +173,11 @@ def test_get_street_found_and_404():
 
 # ---------- TTL ----------
 def test_ttl_expiry(monkeypatch):
-    monkeypatch.setattr(settings, "sighting_ttl", -1)  # протухает мгновенно
-    client.post("/ingest", json=MSG)
+    from app.services import sightings
+
+    assert client.post("/ingest", json=MSG).json()["accepted"]
+    clock = datetime.fromisoformat(MSG["ts"]).timestamp() + settings.sighting_ttl + 1
+    monkeypatch.setattr(sightings, "time", SimpleNamespace(time=lambda: clock))
     assert client.get("/streets", params={"city": "Москва"}).json() == []
 
 
@@ -224,7 +234,7 @@ def test_route_sends_occupied_geometry_to_valhalla(monkeypatch):
 
     class _Resp:
         def raise_for_status(self): pass
-        def json(self): return {"trip": {"summary": {}}}
+        def json(self): return {"trip": {"summary": {}, "legs": [{"shape": "a_valid_polyline"}]}}
 
     class _Client:
         def __init__(self, *a, **k): pass
@@ -257,7 +267,8 @@ def test_feedback_empty_text_validation():
 
 
 def test_feedback_sent_ok(monkeypatch):
-    monkeypatch.setattr(settings, "feedback_bot_token", "TESTTOKEN")
+    monkeypatch.setattr(settings, "feedback_bot_token", "123:TESTTOKEN")
+    monkeypatch.setattr(settings, "feedback_chat_id", "12345")
 
     class _Resp:
         status_code = 200
@@ -278,7 +289,8 @@ def test_feedback_sent_ok(monkeypatch):
 
 
 def test_feedback_invalid_json_is_handled(monkeypatch):
-    monkeypatch.setattr(settings, "feedback_bot_token", "TESTTOKEN")
+    monkeypatch.setattr(settings, "feedback_bot_token", "123:TESTTOKEN")
+    monkeypatch.setattr(settings, "feedback_chat_id", "12345")
 
     class _Resp:
         status_code = 200
@@ -298,8 +310,208 @@ def test_feedback_invalid_json_is_handled(monkeypatch):
 
 
 def test_feedback_rate_limit(monkeypatch):
+    monkeypatch.setattr(settings, "feedback_bot_token", "123:TESTTOKEN")
+    monkeypatch.setattr(settings, "feedback_chat_id", "12345")
     monkeypatch.setattr(settings, "feedback_rate_limit", 1)
+
+    async def unavailable(*args, **kwargs):
+        raise httpx.ConnectError("offline")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", unavailable)
     first = client.post("/feedback", json={"text": "один"}).json()
     second = client.post("/feedback", json={"text": "два"}).json()
-    assert first["reason"] == "feedback_bot_not_configured"
+    assert first["reason"] == "request_failed"
     assert second["reason"] == "rate_limited"
+
+
+
+def test_ingest_fails_closed_without_api_key(monkeypatch):
+    monkeypatch.setattr(settings, "ingest_allow_unauthenticated", False)
+    response = client.post("/ingest", json=MSG)
+    assert response.status_code == 503
+    assert response.json()["detail"] == "ingest_not_configured"
+
+
+@pytest.mark.parametrize(("offset", "reason"), [(-36000, "stale_message"), (301, "future_message")])
+def test_ingest_rejects_outdated_timestamps_before_extraction(monkeypatch, offset, reason):
+    from app.services import extract
+
+    async def unexpected(*args, **kwargs):
+        pytest.fail("An old or future message must not make an external request")
+
+    monkeypatch.setattr(extract, "extract", unexpected)
+    timestamp = datetime.now(timezone.utc) + timedelta(seconds=offset)
+    response = client.post("/ingest", json=dict(MSG, ts=timestamp.isoformat()))
+    assert response.json() == {"accepted": False, "reason": reason}
+
+
+def test_expiry_counts_from_observation_time():
+    timestamp = datetime.now(timezone.utc) - timedelta(minutes=20)
+    assert client.post("/ingest", json=dict(MSG, ts=timestamp.isoformat())).json()["accepted"]
+    street = client.get("/streets", params={"city": "  МСК  "}).json()[0]
+    assert datetime.fromisoformat(street["expires_at"]) == timestamp + timedelta(seconds=settings.sighting_ttl)
+
+
+@pytest.mark.parametrize("timestamp", [42, "42", "2026-01-02", "0001-01-01T01:00:00+02:00"])
+def test_rejects_non_iso_or_overflow_timestamp(timestamp):
+    assert client.post("/ingest", json=dict(MSG, ts=timestamp)).status_code == 422
+
+
+def test_rejects_non_telegram_source_link():
+    assert client.post("/ingest", json=dict(MSG, message_link="https://example.test/1")).status_code == 422
+
+
+def test_private_source_quote_does_not_export_chat_id_or_text(monkeypatch):
+    from app.services import extract
+
+    async def unexpected(*args, **kwargs):
+        pytest.fail("Unexpected external request for a private quote")
+
+    monkeypatch.setattr(extract, "_extract_with_providers", unexpected)
+    response = client.post("/ingest", json=dict(MSG, message_link="chat:-10001/1"))
+    assert response.json()["accepted"]
+    street = client.get("/streets").json()[0]
+    assert street["quotes"] == [{
+        "text": "Отметка из непубличного источника", "link": "", "ts": MSG["ts"].replace("+00:00", "Z"),
+    }]
+    assert client.get("/streets").headers["Cache-Control"] == "no-store"
+
+
+def test_concurrent_duplicate_skips_extraction_and_keeps_original(monkeypatch):
+    from app.services import extract
+
+    calls = 0
+
+    async def fake_extract(text):
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0.02)
+        return {"city": "Москва", "street": "улица Баумана"}
+
+    monkeypatch.setattr(extract, "extract", fake_extract)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as api:
+            return await asyncio.gather(*(api.post("/ingest", json=MSG) for _ in range(5)))
+
+    results = [response.json() for response in asyncio.run(run())]
+    assert calls == 1
+    assert sum(not result["duplicate"] for result in results) == 1
+    assert {result["street"] for result in results} == {"улица Баумана"}
+    assert client.post("/ingest", json=dict(MSG, text="замена")).json()["street"] == "улица Баумана"
+
+
+@pytest.mark.parametrize("text", [
+    "Видел автобус на улице Баумана",
+    "Вчера видел курьера на улице Баумана",
+    "Нужен курьер на улице Баумана",
+    "Где курьер на улице Баумана?",
+    "Курьера нет на улице Баумана",
+    "Курьер сейчас на улице",
+])
+def test_regex_does_not_make_false_sightings(text):
+    assert client.post("/ingest", json=dict(MSG, text=text)).json() == {
+        "accepted": False, "reason": "not_a_sighting",
+    }
+
+
+@pytest.mark.parametrize(("text", "street"), [
+    ("Курьер стоит в переулке Сивцев Вражек", "переулок Сивцев Вражек"),
+    ("Доставщик на проспекте Мира", "проспект Мира"),
+    ("Курьер на улице 50 лет Октября", "улица 50 лет Октября"),
+    ("Курьер едет по шоссе Энтузиастов", "шоссе Энтузиастов"),
+])
+def test_regex_keeps_street_type_and_multiple_words(text, street):
+    assert client.post("/ingest", json=dict(MSG, text=text)).json()["street"] == street
+
+
+def test_feedback_rejects_spaces_and_unbounded_fields():
+    assert client.post("/feedback", json={"text": " \n\t "}).status_code == 422
+    assert client.post("/feedback", json={"text": "тест", "city": "x" * 101}).status_code == 422
+
+
+def test_feedback_ignores_unsigned_attribution_and_disables_preview(monkeypatch):
+    monkeypatch.setattr(settings, "feedback_bot_token", "123:TESTTOKEN")
+    monkeypatch.setattr(settings, "feedback_chat_id", "12345")
+
+    async def post(_client, _url, *, json):
+        assert not "подмена" in json["text"]
+        assert json["chat_id"] == "12345"
+        assert json["link_preview_options"] == {"is_disabled": True}
+        return httpx.Response(200, json={"ok": True})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", post)
+    response = client.post("/feedback", json={"text": "тест", "user": "подмена"})
+    assert response.json()["sent"] is True
+
+
+def test_route_handles_no_path_and_malformed_return(monkeypatch):
+    monkeypatch.setattr(settings, "valhalla_url", "http://valhalla")
+    responses = iter([
+        httpx.Response(400, json={"error_code": 442}),
+        httpx.Response(200, json={"unexpected": "value"}),
+        httpx.Response(200, text="not JSON"),
+    ])
+
+    async def post(_client, url, **kwargs):
+        response = next(responses)
+        response.request = httpx.Request("POST", url)
+        return response
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", post)
+    params = {"city": "мск", "from_lat": 55.75, "from_lng": 37.61, "to_lat": 55.76, "to_lng": 37.62}
+    for status, detail in [(404, "route_not_found"), (502, "invalid_valhalla_response"), (502, "invalid_valhalla_response")]:
+        response = client.get("/route", params=params)
+        assert response.status_code == status
+        assert response.json()["detail"] == detail
+
+
+def test_route_never_silently_skips_occupied_street_without_geometry(monkeypatch):
+    from app.routers import ingest
+
+    async def no_geo(*args):
+        return None
+
+    monkeypatch.setattr(settings, "valhalla_url", "http://valhalla")
+    client.post("/ingest", json=MSG)
+    monkeypatch.setattr(ingest, "geocode_street", no_geo)
+    client.post("/ingest", json=dict(MSG, message_id=2, text="Курьер стоит на улице Пушкина"))
+    params = {"city": "мск", "from_lat": 55.75, "from_lng": 37.61, "to_lat": 55.76, "to_lng": 37.62,
+              "avoid": "occupied"}
+    response = client.get("/route", params=params)
+    assert response.status_code == 409
+    assert response.json()["detail"] == "occupied_geometry_unavailable"
+
+
+def test_body_limits_apply_before_json_parsing():
+    for path, max_size in [("/ingest", 128 * 1024), ("/feedback", 32 * 1024)]:
+        response = client.post(path, content=b" " * (max_size + 1))
+        assert response.status_code == 413
+        assert response.json()["detail"] == "request_too_large"
+
+
+def test_feedback_http_client_logs_do_not_include_token(caplog):
+    import logging
+
+    async def run():
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200)),
+        ) as http:
+            await http.post("https://api.telegram.org/bot123:TESTTOKEN/sendMessage")
+
+    with caplog.at_level(logging.INFO, logger="httpx"):
+        asyncio.run(run())
+    assert "TESTTOKEN" not in caplog.text
+    assert "bot[redacted]/sendMessage" in caplog.text
+
+
+def test_ingest_accepts_full_quote_with_escaped_unicode():
+    import json
+
+    prefix = MSG["text"] + ". "
+    text = prefix + "😀" * (10_000 - len(prefix))
+    encoded = json.dumps(dict(MSG, text=text), ensure_ascii=True).encode("ascii")
+    assert 100_000 < len(encoded) < 128 * 1024
+    response = client.post("/ingest", content=encoded, headers={"Content-Type": "application/json"})
+    assert response.status_code == 200
+    assert response.json()["accepted"] is True

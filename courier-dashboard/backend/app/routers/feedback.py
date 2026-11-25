@@ -1,69 +1,97 @@
-"""POST /feedback — обратная связь из приложения, падает владельцу в Telegram.
-
-Фронт шлёт {text, city, source}. Backend отправляет сообщение боту-отправителю
-(FEEDBACK_BOT_TOKEN) в чат владельца (FEEDBACK_CHAT_ID = 623597334).
-Если токен не задан — возвращаем sent=false с понятной причиной (фронт это покажет).
-"""
+"""POST /feedback — отправка сообщения в настроенный Telegram-чат."""
 import logging
+import re
 import time
 from collections import defaultdict, deque
 
 import httpx
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 _requests: dict[str, deque[float]] = defaultdict(deque)
+_global_requests: deque[float] = deque()
+
+
+class _RedactTelegramToken(logging.Filter):
+    _url = re.compile(r"(https://api\.telegram\.org/bot)[^/\s]+", re.IGNORECASE)
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        redacted = self._url.sub(r"\1[redacted]", message)
+        if redacted != message:
+            record.msg, record.args = redacted, ()
+        return True
+
+
+# HTTPX пишет полный URL в INFO даже при успешном ответе Telegram.
+logging.getLogger("httpx").addFilter(_RedactTelegramToken())
 
 
 class Feedback(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     text: str = Field(min_length=1, max_length=2000)
-    city: str | None = None
-    source: str | None = None   # напр. "miniapp"
-    user: str | None = None     # username/id отправителя, если известен
+    city: str | None = Field(default=None, max_length=100)
+    source: str | None = Field(default=None, max_length=100)
+
+
+def _expire(times: deque[float], now: float) -> None:
+    while times and times[0] <= now - 60:
+        times.popleft()
+
+
+def _allow_request(client_ip: str, now: float) -> bool:
+    _expire(_global_requests, now)
+    if len(_global_requests) >= settings.feedback_global_rate_limit:
+        return False
+    for addr, times in list(_requests.items()):
+        _expire(times, now)
+        if not times:
+            _requests.pop(addr)
+    recent = _requests[client_ip]
+    if len(recent) >= settings.feedback_rate_limit:
+        return False
+    recent.append(now)
+    _global_requests.append(now)
+    return True
 
 
 @router.post("/feedback")
 async def feedback(fb: Feedback, request: Request) -> dict:
-    client_ip = request.client.host if request.client else "unknown"
-    now = time.monotonic()
-    recent = _requests[client_ip]
-    while recent and recent[0] < now - 60:
-        recent.popleft()
-    if len(recent) >= settings.feedback_rate_limit:
-        return {"sent": False, "reason": "rate_limited"}
-    recent.append(now)
-
-    if not settings.feedback_bot_token:
+    if not (settings.feedback_bot_token and settings.feedback_chat_id):
         return {"sent": False, "reason": "feedback_bot_not_configured"}
+
+    client_ip = request.client.host if request.client else "unknown"
+    if not _allow_request(client_ip, time.monotonic()):
+        return {"sent": False, "reason": "rate_limited"}
 
     parts = ["🛠 Обратная связь из приложения «Курьеры»"]
     if fb.city:
-        parts.append(f"Город: {fb.city}")
-    if fb.user:
-        parts.append(f"От: {fb.user}")
+        parts.append("Город: " + " ".join(fb.city.split()))
     if fb.source:
-        parts.append(f"Источник: {fb.source}")
+        parts.append("Источник: " + " ".join(fb.source.split()))
     parts.append("")
     parts.append(fb.text)
-    message = "\n".join(parts)
 
+    # Токен находится в URL: не логируем объект httpx-ошибки/URL или сырой ответ.
     url = f"https://api.telegram.org/bot{settings.feedback_bot_token}/sendMessage"
-    payload = {"chat_id": settings.feedback_chat_id, "text": message}
+    payload = {"chat_id": settings.feedback_chat_id, "text": "\n".join(parts), "link_preview_options": {"is_disabled": True}}
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.post(url, json=payload)
-        if r.status_code == 200:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(url, json=payload)
+        if response.status_code == 200:
             try:
-                if r.json().get("ok"):
+                result = response.json()
+                if isinstance(result, dict) and result.get("ok") is True:
                     return {"sent": True}
-            except (ValueError, TypeError, AttributeError):
+            except (ValueError, RecursionError):
                 logger.warning("Telegram feedback returned invalid JSON")
-        logger.warning("Telegram feedback error: status=%s", r.status_code)
+        logger.warning("Telegram feedback error: status=%s", response.status_code)
         return {"sent": False, "reason": "telegram_error"}
-    except httpx.HTTPError:
-        logger.exception("Telegram feedback request failed")
+    except httpx.HTTPError as exc:
+        logger.warning("Telegram feedback request failed (%s)", type(exc).__name__)
         return {"sent": False, "reason": "request_failed"}

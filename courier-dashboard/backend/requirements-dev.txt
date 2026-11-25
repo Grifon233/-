@@ -2,4 +2,5 @@
 -r requirements.txt
 pytest==8.*
 playwright==1.*
+httpx2==2.*
 # После установки playwright один раз выполнить: python -m playwright install chromium

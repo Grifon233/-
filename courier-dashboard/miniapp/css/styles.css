@@ -1,155 +1,264 @@
-/* ====== Тема (с учётом Telegram theme params, с запасными значениями) ====== */
 :root {
   --bg: var(--tg-theme-bg-color, #f4f5f7);
-  --surface: var(--tg-theme-secondary-bg-color, #ffffff);
+  --surface: var(--tg-theme-secondary-bg-color, #fff);
   --text: var(--tg-theme-text-color, #1c1e21);
-  --hint: var(--tg-theme-hint-color, #8a8f98);
-  --accent: var(--tg-theme-button-color, #e5397f);
-  --accent-text: var(--tg-theme-button-text-color, #ffffff);
-  --danger: #e23b3b;
-  --ok: #2faf5a;
+  --hint: var(--tg-theme-hint-color, #505763);
+  --accent: var(--tg-theme-button-color, #ad1b53);
+  --accent-text: var(--tg-theme-button-text-color, #fff);
+  --line: color-mix(in srgb, var(--text) 24%, transparent);
+  --ok: #168444;
+  --warning: #b45d04;
+  --danger: #be163f;
   --radius: 16px;
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.10);
+  color-scheme: light dark;
 }
 
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: var(--tg-theme-bg-color, #15171b);
+    --surface: var(--tg-theme-secondary-bg-color, #22252b);
+    --text: var(--tg-theme-text-color, #eef1f6);
+    --hint: var(--tg-theme-hint-color, #bac2ce);
+    --ok: #72e4a2;
+    --warning: #ffc173;
+    --danger: #ffa0b6;
+  }
+}
+
+* { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body {
   font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
-  overflow: hidden;
 }
-.hidden { display: none !important; }
-.screen { position: absolute; inset: 0; }
+[hidden], .hidden { display: none !important; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+.screen { position: absolute; inset: 0; overflow: auto; }
 
-/* ====== Экран выбора города ====== */
+/* Выбор города */
 .screen-city {
-  display: flex; flex-direction: column;
-  padding: 28px 20px calc(20px + env(safe-area-inset-bottom));
-  background:
-    radial-gradient(120% 80% at 50% -10%, rgba(229, 57, 127, 0.16), transparent 60%),
-    var(--bg);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: max(28px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  background: radial-gradient(120% 80% at 50% -10%, #e5397f29, transparent 60%), var(--bg);
 }
 .city-hero { text-align: center; margin: 14px 0 22px; }
 .logo-badge {
-  width: 76px; height: 76px; margin: 0 auto 14px;
-  display: grid; place-items: center;
-  font-size: 38px; border-radius: 24px;
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  font-size: 38px;
+  border-radius: 24px;
   background: linear-gradient(135deg, #ff7eb3, #e5397f);
-  box-shadow: 0 10px 30px rgba(229, 57, 127, 0.35);
+  box-shadow: 0 10px 30px #e5397f59;
 }
-.city-hero h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.3px; }
-.subtitle { margin: 8px 0 0; color: var(--hint); font-size: 15px; }
-
-.city-list { display: flex; flex-direction: column; gap: 12px; max-width: 480px; width: 100%; margin: 0 auto; }
+.city-hero h1 { margin: 0; font-size: 1.625rem; font-weight: 800; letter-spacing: -0.3px; }
+.subtitle { margin: 8px 0 0; color: var(--hint); font-size: 0.9375rem; }
+.city-list {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+}
 .city-card {
-  display: flex; align-items: center; gap: 14px;
-  padding: 16px 18px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
   background: var(--surface);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--line, currentColor);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  cursor: pointer; text-align: left;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  cursor: pointer;
+  text-align: left;
 }
-.city-card:active { transform: scale(0.985); }
-.city-card:hover { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14); }
 .city-emoji {
-  width: 48px; height: 48px; flex: 0 0 48px;
-  display: grid; place-items: center; font-size: 24px;
-  border-radius: 14px; background: rgba(229, 57, 127, 0.10);
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  border-radius: 14px;
+  background: #e5397f1a;
 }
 .city-info { flex: 1 1 auto; min-width: 0; }
-.city-name { display: block; font-size: 17px; font-weight: 700; }
-.city-pop { display: block; font-size: 13px; color: var(--hint); margin-top: 3px; }
-.city-arrow { color: var(--hint); font-size: 20px; }
-.hero-footer { text-align: center; color: var(--hint); font-size: 12px; margin-top: 18px; }
+.city-name { display: block; font-size: 1.0625rem; font-weight: 700; overflow-wrap: anywhere; }
+.city-pop { display: block; font-size: 0.8125rem; color: var(--hint); margin-top: 3px; }
+.city-arrow { color: var(--hint); font-size: 1.25rem; }
+.hero-footer { text-align: center; color: var(--hint); font-size: 0.8125rem; margin: 18px 0 0; }
 
-/* ====== Экран карты ====== */
-.screen-map { display: flex; flex-direction: column; }
-.topbar {
-  position: relative; z-index: 600;
-  display: flex; align-items: center;
-  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+/* Карта и текстовый список занимают отдельное место, не закрывая управление картой. */
+.screen-map {
+  --left-gap: max(12px, env(safe-area-inset-left));
+  --right-gap: max(12px, env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.topbar, .map-tools {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: space-between;
+  padding: 4px var(--right-gap) 4px var(--left-gap);
   background: var(--surface);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
 }
-.topbar-city {
-  display: inline-flex; align-items: center; gap: 6px;
-  border: none; background: transparent; cursor: pointer;
-  font-size: 18px; font-weight: 800; color: var(--text);
-  padding: 6px 4px;
+.topbar {
+  padding-top: max(4px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--line, currentColor);
 }
-.topbar-city .chev { color: var(--accent); font-size: 14px; }
-.topbar-spacer { flex: 1; }
-
-.map { flex: 1; width: 100%; background: #e8eaed; z-index: 1; }
-
-/* ====== Боковая панель: статус + обратная связь ====== */
-.side-panel {
-  position: absolute; right: 12px; top: calc(58px + env(safe-area-inset-top));
-  z-index: 600; display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
+.topbar h1 { margin: 4px 0; min-width: 0; font-size: 1.125rem; font-weight: 800; overflow-wrap: anywhere; }
+.chev { margin-left: 2px; }
+.map-tools { justify-content: flex-start; }
+.map-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin-left: auto; }
+.map {
+  flex: 1 0 160px;
+  min-width: 0;
+  width: 100%;
+  background: #e8eaed;
+  isolation: isolate;
 }
+.map-note {
+  margin: 0;
+  padding: 8px var(--right-gap) 8px var(--left-gap);
+  font-size: 0.875rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line, currentColor);
+}
+.map-note:empty, .feedback-error:empty { padding: 0; border: 0; margin: 0; }
 .status-chip {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: 999px;
-  background: var(--surface); box-shadow: var(--shadow);
-  font-size: 13px; font-weight: 600; max-width: 70vw;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  font-weight: 600;
+  padding: 6px 0;
 }
-.status-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; }
-.status-ok    .status-dot { background: var(--ok); }
-.status-ok    #status-text { color: var(--ok); }
-.status-error .status-dot { background: var(--danger); animation: pulse 1.2s infinite; }
-.status-error #status-text { color: var(--danger); }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
-
-.btn-feedback {
-  border: none; cursor: pointer;
-  padding: 10px 14px; border-radius: 999px;
-  background: var(--surface); color: var(--text);
-  box-shadow: var(--shadow); font-size: 13px; font-weight: 600;
+.status-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; background: var(--hint); }
+.status-ok .status-dot { background: var(--ok); }
+.status-warning .status-dot { background: var(--warning); }
+.status-error .status-dot { background: var(--danger); }
+.control {
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
 }
-.btn-feedback:active { transform: scale(0.97); }
+.control[aria-disabled="true"], .btn[aria-disabled="true"] { opacity: 0.7; cursor: wait; }
+.map .leaflet-control-zoom a { width: 44px; height: 44px; line-height: 44px; }
+.map .leaflet-container a:focus-visible, .map a:focus-visible { outline: 3px solid #141a24; outline-offset: -3px; }
+.map .leaflet-popup-content { max-width: min(260px, calc(100vw - 86px)); max-height: 180px; overflow: auto; }
+.map .leaflet-popup-content-wrapper { color: #1c1e21; }
+.map .quote a { color: #861540; }
+.map .leaflet-popup-close-button { width: 32px; height: 32px; }
 
-/* ====== Модальное окно ====== */
+.street-panel {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border-top: 1px solid var(--line, currentColor);
+  padding: 0 var(--right-gap) 0 var(--left-gap);
+}
+summary { cursor: pointer; }
+.street-panel > summary { min-height: 44px; padding: 11px 0; font-weight: 700; }
+.street-list {
+  max-height: min(36vh, 390px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 4px 8px;
+  list-style: none;
+}
+.street-list li { border-top: 1px solid var(--line, currentColor); }
+.street-list summary { min-height: 44px; padding: 11px 2px; overflow-wrap: anywhere; }
+.street-unmapped { color: var(--hint); font-size: 0.875em; }
+.street-content { padding: 0 4px 6px 12px; }
+.quote {
+  font-size: 0.875rem;
+  padding: 6px 0;
+  border-block-end: 1px solid var(--line, transparent);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.quote:last-child { border-block-end: 0; }
+.quote a { color: inherit; font-weight: 600; text-decoration: underline; }
+
+/* Нативный dialog изолирует фокус и закрывается по Escape. */
 .modal {
-  position: fixed; inset: 0; z-index: 1000;
-  display: grid; place-items: center; padding: 18px;
-  background: rgba(0, 0, 0, 0.45);
+  width: min(calc(100% - 24px), 440px);
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  border: 0;
+  border-radius: 20px;
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
 }
-.modal-card {
-  width: 100%; max-width: 440px;
-  background: var(--surface); color: var(--text);
-  border-radius: 20px; padding: 22px; box-shadow: var(--shadow);
-}
-.modal-card h2 { margin: 0 0 6px; font-size: 19px; }
-.modal-hint { margin: 0 0 14px; color: var(--hint); font-size: 14px; }
+.modal::backdrop { background: #0008; }
+.modal-card { padding: 18px clamp(12px, 4vw, 22px); }
+.modal-card h2 { margin: 0 0 6px; font-size: 1.1875rem; }
+.modal-hint { margin: 0 0 14px; color: var(--hint); font-size: 0.875rem; }
+.modal label { display: block; margin-bottom: 6px; font-weight: 700; }
 #feedback-text {
-  width: 100%; resize: vertical; font: inherit; color: var(--text);
-  padding: 12px; border-radius: 12px; border: 1px solid rgba(0, 0, 0, 0.14);
+  display: block;
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  color: var(--text);
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line, currentColor);
   background: var(--bg);
 }
-.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
-.btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; }
-.btn-primary { background: var(--accent); color: var(--accent-text); }
-.btn-ghost { background: transparent; color: var(--hint); border: 1px solid rgba(0,0,0,0.12); }
-.btn:active { transform: scale(0.98); }
-.btn[disabled] { opacity: 0.55; cursor: default; }
-
-/* ====== Тост ====== */
-.toast {
-  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom));
-  transform: translateX(-50%); z-index: 1100;
-  padding: 12px 18px; border-radius: 12px; max-width: 86vw;
-  background: #2b2d31; color: #fff; font-size: 14px; box-shadow: var(--shadow);
+.feedback-error { margin: 8px 0 0; font-size: 0.875rem; font-weight: 600; }
+.modal-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.btn {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
 }
-.toast.toast-error { background: var(--danger); }
-.toast.toast-ok { background: var(--ok); }
+.btn-primary { background: var(--accent); color: var(--accent-text); }
+.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line, currentColor); }
 
-/* Подсветка занятой улицы на карте (Leaflet path) задаётся в JS,
-   здесь — стиль попапа с цитатами. */
-.quote { font-size: 13px; padding: 6px 0; border-top: 1px solid rgba(0,0,0,0.08); }
-.quote:first-child { border-top: none; }
-.quote a { color: var(--accent); text-decoration: none; }
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 1100;
+  padding: 12px 18px;
+  border-radius: 12px;
+  max-width: 86vw;
+  background: #2b2d31;
+  color: #fff;
+  font-size: 0.875rem;
+  box-shadow: var(--shadow);
+}
+.toast-error { background: #891031; }
+.toast-ok { background: #136433; }

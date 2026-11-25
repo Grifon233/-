@@ -1,51 +1,33 @@
-"""GET /route — маршрут, при avoid=occupied строится в обход занятых улиц (см. docs/03).
+"""GET /route — пешеходный маршрут через настроенный Valhalla."""
+import json
 
-Использует Valhalla (exclude_polygons). Если VALHALLA_URL пуст — отдаёт 503,
-чтобы было явно видно, что маршрутизатор ещё не подключён.
-"""
 import httpx
 from fastapi import APIRouter, HTTPException, Query
+from starlette.concurrency import run_in_threadpool
 
 from app.config import settings
+from app.services.cities import normalize_city
+from app.services.geometry import sample_locations
 from app.services.sightings import store
 
 router = APIRouter()
-
-
-def _geometry_points(geometry: dict, limit: int = 80) -> list[dict[str, float]]:
-    coordinates = geometry.get("coordinates")
-    points: list[list[float]] = []
-
-    def collect(value) -> None:
-        if (
-            isinstance(value, list)
-            and len(value) >= 2
-            and all(isinstance(v, (int, float)) for v in value[:2])
-        ):
-            points.append(value)
-        elif isinstance(value, list):
-            for child in value:
-                collect(child)
-
-    collect(coordinates)
-    if not points:
-        return []
-    step = max(1, len(points) // limit)
-    return [
-        {"lat": point[1], "lon": point[0]}
-        for point in points[::step][:limit]
-    ]
+_MAX_AVOID_LOCATIONS = 50
+_NO_PATH = {154, 170, 171, 172, 441, 442}
 
 
 @router.get("/route")
 async def route(
-    city: str,
+    city: str = Query(min_length=1, max_length=100),
     from_lat: float = Query(ge=-90, le=90),
     from_lng: float = Query(ge=-180, le=180),
     to_lat: float = Query(ge=-90, le=90),
     to_lng: float = Query(ge=-180, le=180),
-    avoid: str | None = None,   # avoid=occupied -> обходить занятые улицы
+    avoid: str | None = Query(default=None, max_length=16),
 ) -> dict:
+    if (canonical_city := normalize_city(city)) is None:
+        raise HTTPException(status_code=422, detail="unknown_city")
+    if avoid not in (None, "occupied"):
+        raise HTTPException(status_code=422, detail="unsupported_avoid_mode")
     if not settings.valhalla_url:
         raise HTTPException(status_code=503, detail="valhalla_not_configured")
 
@@ -57,31 +39,52 @@ async def route(
         "costing": "pedestrian",
     }
 
-    if avoid not in (None, "occupied"):
-        raise HTTPException(status_code=422, detail="unsupported_avoid_mode")
-
     if avoid == "occupied":
-        occupied = store.list_streets(city=city)
-        avoid_locations: list[dict[str, float]] = []
-        for street in occupied:
-            if street.geometry:
-                avoid_locations.extend(_geometry_points(street.geometry))
-        if occupied and not avoid_locations:
-            raise HTTPException(status_code=409, detail="occupied_geometry_unavailable")
-        if avoid_locations:
-            payload["exclude_locations"] = avoid_locations[:100]
+        occupied = await run_in_threadpool(store.list_streets, canonical_city)
+        if len(occupied) > _MAX_AVOID_LOCATIONS:
+            raise HTTPException(status_code=409, detail="too_many_occupied_streets")
+        if occupied:
+            per_street, remainder = divmod(_MAX_AVOID_LOCATIONS, len(occupied))
+            avoid_locations = []
+            for index, street in enumerate(occupied):
+                limit = per_street + int(index < remainder)
+                if not street.geometry or not (points := sample_locations(street.geometry, limit)):
+                    raise HTTPException(status_code=409, detail="occupied_geometry_unavailable")
+                avoid_locations.extend(points)
+            payload["exclude_locations"] = avoid_locations
 
+    result = None
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.post(
-                f"{settings.valhalla_url.rstrip('/')}/route",
-                json=payload,
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(f"{settings.valhalla_url.rstrip('/')}/route", json=payload)
+            try:
+                result = response.json()
+            except (ValueError, RecursionError):
+                response.raise_for_status()
+                raise
+            response.raise_for_status()
+        if (
+            not isinstance(result, dict) or not isinstance(result.get("trip"), dict)
+            or not isinstance(result["trip"].get("legs"), list) or not result["trip"]["legs"]
+            or not all(
+                isinstance(leg, dict) and isinstance(leg.get("shape"), str) and leg["shape"]
+                for leg in result["trip"]["legs"]
             )
-            r.raise_for_status()
-            result = r.json()
-            result["avoidance_applied"] = bool(payload.get("exclude_locations"))
-            return result
+        ):
+            raise HTTPException(status_code=502, detail="invalid_valhalla_response")
+        result["avoidance_applied"] = "exclude_locations" in payload
+        if result["avoidance_applied"]:
+            result["avoidance_method"] = "sampled_locations"
+        json.dumps(result, allow_nan=False)
+        return result
     except httpx.TimeoutException as exc:
         raise HTTPException(status_code=504, detail="valhalla_timeout") from exc
+    except httpx.HTTPStatusError as exc:
+        code = result.get("error_code") if isinstance(result, dict) else None
+        if type(code) is int and code in _NO_PATH:
+            raise HTTPException(status_code=404, detail="route_not_found") from exc
+        raise HTTPException(status_code=502, detail="valhalla_error") from exc
+    except (ValueError, RecursionError) as exc:
+        raise HTTPException(status_code=502, detail="invalid_valhalla_response") from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail="valhalla_error") from exc

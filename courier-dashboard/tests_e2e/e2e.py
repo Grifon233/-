@@ -1,117 +1,232 @@
-"""E2E-прогон всех пользовательских сценариев приложения через Playwright.
+"""Проверки Mini App в Chromium с настоящим локальным FastAPI.
 
-Запуск (сервер должен слушать BASE):
-    backend/.venv/Scripts/python.exe tests_e2e/e2e.py
+Из каталога courier-dashboard: python -m pytest -q tests_e2e/e2e.py
+Внешние службы заменены тестовыми ответами; реальные сообщения не отправляются.
 """
+
+import base64
+import re
+import socket
 import sys
+import threading
+import time
+from datetime import datetime, timezone
 from pathlib import Path
-from playwright.sync_api import sync_playwright, expect
+from urllib.parse import urlsplit
 
-BASE = "http://127.0.0.1:8010"
-SHOTS = Path(__file__).parent / "shots"
-SHOTS.mkdir(exist_ok=True)
+import httpx
+import pytest
+import uvicorn
+from playwright.sync_api import expect, sync_playwright
 
-passed, failed = 0, 0
+BACKEND = Path(__file__).resolve().parents[1] / "backend"
+sys.path.insert(0, str(BACKEND))
+from app.config import settings
+
+if settings.store_backend != "memory":
+    pytest.skip("Браузерные тесты требуют STORE_BACKEND=memory", allow_module_level=True)
+
+from app.main import app
+from app.routers import ingest
+from app.services.sightings import store
 
 
-def check(name, cond):
-    global passed, failed
-    if cond:
-        passed += 1
-        print(f"  PASS  {name}")
-    else:
-        failed += 1
-        print(f"  FAIL  {name}")
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aG8sAAAAASUVORK5CYII="
+)
+KEY = "e2e-only-key-not-for-production"
+CITY = re.compile(r"Москва|Санкт-Петербург|Новосибирск|Екатеринбург|Казань")
 
 
-with sync_playwright() as p:
-    browser = p.chromium.launch()
-    ctx = browser.new_context(viewport={"width": 390, "height": 844})  # телефон
-    page = ctx.new_page()
+@pytest.fixture
+def live_api(monkeypatch):
+    async def geocode(city, street):
+        if "Баумана" not in street:
+            return None
+        return {
+            "type": "LineString",
+            "coordinates": [[37.610, 55.754], [37.621, 55.760]],
+        }
 
-    # ---- Сценарий 1: вход -> экран выбора города ----
-    print("\n[1] Вход в приложение — экран выбора города")
-    page.goto(f"{BASE}/app/", wait_until="networkidle")
-    cards = page.locator(".city-card")
-    check("показано 5 городов", cards.count() == 5)
-    names = cards.locator(".city-name").all_inner_texts()
-    check("есть Москва", "Москва" in names)
-    check("есть Санкт-Петербург", "Санкт-Петербург" in names)
-    check("есть Новосибирск", "Новосибирск" in names)
-    check("есть Екатеринбург", "Екатеринбург" in names)
-    check("есть Казань", "Казань" in names)
-    check("карта ещё скрыта", page.locator("#screen-map").is_hidden())
-    page.screenshot(path=str(SHOTS / "1_city_select.png"))
+    monkeypatch.setattr(ingest, "geocode_street", geocode)
+    for name, value in {
+        "ingest_api_key": KEY,
+        "feedback_bot_token": "",
+        "feedback_chat_id": "",
+        "anthropic_api_key": "",
+        "llm_api_keys_file": "",
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+    store.clear()
 
-    # ---- Сценарий 2: выбор города -> карта ----
-    print("\n[2] Выбор «Москва» — открывается карта")
-    page.locator('.city-card[data-city="moscow"]').click()
-    check("экран карты показан", page.locator("#screen-map").is_visible())
-    check("экран выбора скрыт", page.locator("#screen-city").is_hidden())
-    check("в шапке название города = Москва",
-          page.locator("#current-city-name").inner_text() == "Москва")
-    page.wait_for_function(
-        "document.querySelector('#status-text').innerText !== 'Загрузка…'", timeout=8000)
-    check("статус: занятых улиц нет (бэкенд доступен)",
-          "Занятых улиц" in page.locator("#status-text").inner_text())
-    check("карта Leaflet инициализирована",
-          page.locator("#map.leaflet-container").count() == 1
-          and page.locator("#map .leaflet-tile-pane").count() == 1)
-    page.wait_for_timeout(1200)  # дать тайлам прогрузиться для скриншота
-    page.screenshot(path=str(SHOTS / "2_map_moscow.png"))
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+        server = uvicorn.Server(uvicorn.Config(app, access_log=False, log_level="warning", ws="none"))
+        thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
+        thread.start()
+        try:
+            for _ in range(150):
+                if server.started or not thread.is_alive():
+                    break
+                time.sleep(0.02)
+            assert server.started, "Тестовый FastAPI не запустился"
+            yield f"http://127.0.0.1:{port}"
+        finally:
+            server.should_exit = True
+            thread.join(5)
+            assert not thread.is_alive(), "Тестовый FastAPI не завершился"
+            store.clear()
 
-    # ---- Сценарий 3: смена города ----
-    print("\n[3] Смена города на «Казань»")
-    page.locator("#btn-change-city").click()
-    check("снова экран выбора города", page.locator("#screen-city").is_visible())
-    page.locator('.city-card[data-city="kazan"]').click()
-    check("название города = Казань",
-          page.locator("#current-city-name").inner_text() == "Казань")
-    page.wait_for_timeout(800)
-    page.screenshot(path=str(SHOTS / "3_map_kazan.png"))
 
-    # ---- Сценарий 4: обратная связь — пустое сообщение ----
-    print("\n[4] Обратная связь — пустой текст не отправляется")
-    page.locator("#btn-feedback").click()
-    check("модалка открыта", page.locator("#feedback-modal").is_visible())
-    page.locator("#fb-send").click()
-    page.wait_for_selector("#toast:not(.hidden)", timeout=4000)
-    check("тост: просьба написать сообщение",
-          "Напишите" in page.locator("#toast").inner_text())
+@pytest.fixture(scope="module")
+def browser():
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            yield browser
+        finally:
+            browser.close()
 
-    # ---- Сценарий 5: обратная связь — отправка (бот не настроен) ----
-    print("\n[5] Обратная связь — отправка (канал не настроен -> понятное сообщение)")
-    page.locator("#feedback-text").fill("Тест: улица не подсвечивается")
-    page.locator("#fb-send").click()
-    page.wait_for_function(
-        "document.querySelector('#toast') && document.querySelector('#toast').innerText.includes('настроен')",
-        timeout=5000)
-    check("тост: канал обратной связи не настроен",
-          "настроен" in page.locator("#toast").inner_text())
-    page.screenshot(path=str(SHOTS / "5_feedback.png"))
-    page.locator("#fb-cancel").click()
-    check("модалка закрыта", page.locator("#feedback-modal").is_hidden())
 
-    ctx.close()
+@pytest.fixture
+def page(browser, live_api):
+    with browser.new_context(viewport={"width": 360, "height": 760}) as context:
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
 
-    # ---- Сценарий 6: ошибка соединения -> статус-индикатор краснеет ----
-    print("\n[6] Сбой сервера — боковой индикатор показывает проблему")
-    ctx2 = browser.new_context(viewport={"width": 390, "height": 844})
-    page2 = ctx2.new_page()
-    page2.route("**/streets*", lambda route: route.abort())
-    page2.goto(f"{BASE}/app/", wait_until="domcontentloaded")
-    page2.locator('.city-card[data-city="spb"]').click()
-    page2.wait_for_function(
-        "document.querySelector('#status-chip').className.includes('status-error')",
-        timeout=8000)
-    check("статус стал 'ошибка'",
-          "status-error" in page2.locator("#status-chip").get_attribute("class"))
-    check("текст про отсутствие связи",
-          "связи" in page2.locator("#status-text").inner_text())
-    page2.screenshot(path=str(SHOTS / "6_error_status.png"))
-    ctx2.close()
+        def isolate(route):
+            host = urlsplit(route.request.url).hostname or ""
+            if route.request.url.startswith(live_api + "/"):
+                route.continue_()
+            elif host == "tile.openstreetmap.org" or host.endswith(".tile.openstreetmap.org"):
+                route.fulfill(content_type="image/png", body=PNG)
+            else:
+                route.abort()
 
-    browser.close()
+        page.route("**/*", isolate)
+        yield page
+        assert errors == []
 
-print(f"\n==== ИТОГ: {passed} passed, {failed} failed ====")
-sys.exit(1 if failed else 0)
+
+def open_app(page, url):
+    response = page.goto(url + "/app/", wait_until="domcontentloaded")
+    assert response.ok
+
+
+def choose(page, city="moscow"):
+    page.locator(f'button.city-card[data-city="{city}"]').click()
+
+
+def seed(url, street, message_id):
+    with httpx.Client(base_url=url, timeout=3, trust_env=False) as client:
+        message = {
+            "source_chat": "@test_couriers",
+            "message_id": message_id,
+            "message_link": f"https://t.me/test_couriers/{message_id}",
+            "text": f"Курьер стоит на улице {street}",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "city": "Москва",
+        }
+        response = client.post("/ingest", json=message, headers={"X-API-Key": KEY})
+        assert response.status_code == 200, response.text
+        assert response.json()["accepted"] is True
+
+
+def test_city_selection_empty_map_and_saved_city(page, live_api):
+    open_app(page, live_api)
+    expect(page.get_by_role("button", name=CITY)).to_have_count(5)
+    expect(page.locator("#screen-map")).to_be_hidden()
+    choose(page)
+    expect(page.locator("#current-city-name")).to_have_text("Москва")
+    expect(page.locator("#status-text")).to_have_text("Занятых улиц нет")
+    expect(page.locator("#map.leaflet-container")).to_be_visible()
+    expect(page.locator("#map .leaflet-tile-pane img").first).to_be_visible()
+    page.get_by_role("button", name="Сменить город").click()
+    expect(page.locator("#screen-city")).to_be_visible()
+    choose(page, "kazan")
+    expect(page.locator("#current-city-name")).to_have_text("Казань")
+    page.reload(wait_until="domcontentloaded")
+    expect(page.locator("#current-city-name")).to_have_text("Казань")
+    expect(page.locator("#screen-city")).to_be_hidden()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+
+def test_real_ingest_visible_in_correct_city_with_and_without_geometry(page, live_api):
+    seed(live_api, "Баумана", 1)
+    seed(live_api, "Ленина", 2)
+    open_app(page, live_api)
+    choose(page)
+    expect(page.locator("#map .leaflet-overlay-pane path")).to_have_count(1)
+    page.locator("#street-summary").click()
+    lenin = page.locator("#street-list summary").filter(has_text="улица Ленина")
+    expect(lenin).to_be_visible()
+    lenin.click()
+    expect(page.get_by_role("link", name="Открыть источник")).to_have_attribute(
+        "href", "https://t.me/test_couriers/2"
+    )
+    page.get_by_role("button", name="Сменить город").click()
+    choose(page, "kazan")
+    expect(page.locator("#status-text")).to_have_text("Занятых улиц нет")
+    expect(page.locator("#map .leaflet-overlay-pane path")).to_have_count(0)
+    expect(lenin).to_have_count(0)
+
+
+def test_feedback_keyboard_validation_failure_and_draft(page, live_api):
+    open_app(page, live_api)
+    choose(page)
+    feedback = page.get_by_role("button", name="Сообщить о проблеме")
+    feedback.focus()
+    page.keyboard.press("Enter")
+    dialog = page.get_by_role("dialog")
+    textarea = dialog.get_by_role("textbox")
+    expect(textarea).to_be_focused()
+    dialog.get_by_role("button", name="Отправить").click()
+    expect(page.locator("#feedback-error")).to_contain_text("Напишите")
+    textarea.fill("  Карта не открывается  ")
+    with page.expect_response(lambda res: res.url == live_api + "/feedback") as result:
+        dialog.get_by_role("button", name="Отправить").click()
+    assert result.value.json()["reason"] == "feedback_bot_not_configured"
+    expect(page.locator("#feedback-error")).to_contain_text("не настроен")
+    expect(textarea).to_have_value("  Карта не открывается  ")
+    page.keyboard.press("Escape")
+    expect(dialog).to_be_hidden()
+    expect(feedback).to_be_focused()
+
+
+def test_unreachable_streets_recovers_with_refresh(page, live_api):
+    def drop(route):
+        route.abort()
+
+    pattern = "**/streets?city=*"
+    page.route(pattern, drop)
+    open_app(page, live_api)
+    choose(page, "spb")
+    expect(page.locator("#status-chip")).to_have_class(re.compile("status-error"))
+    expect(page.locator("#status-text")).to_contain_text(re.compile("связ|загруз", re.I))
+    page.unroute(pattern, drop)
+    page.get_by_role("button", name=re.compile("Обновить|Повторить")).click()
+    expect(page.locator("#status-text")).to_have_text("Занятых улиц нет")
+
+
+def test_street_list_available_if_leaflet_script_fails(page, live_api):
+    seed(live_api, "Ленина", 1)
+    page.route("**/leaflet.js", lambda route: route.abort())
+    open_app(page, live_api)
+    choose(page)
+    expect(page.locator("#street-list summary").filter(has_text="улица Ленина")).to_be_visible()
+    expect(page.locator("#map.leaflet-container")).to_have_count(0)
+
+
+def test_tile_outage_does_not_hide_street_report_on_small_screen(page, live_api):
+    page.set_viewport_size({"width": 320, "height": 600})
+    seed(live_api, "Баумана", 1)
+    page.route("https://tile.openstreetmap.org/**", lambda route: route.abort())
+    open_app(page, live_api)
+    choose(page)
+    expect(page.locator("#map-note")).to_contain_text(re.compile("карт|подлож", re.I))
+    expect(page.locator("#map .leaflet-overlay-pane path")).to_have_count(1)
+    page.locator("#street-summary").click()
+    expect(page.locator("#street-list summary").filter(has_text="улица Баумана")).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
